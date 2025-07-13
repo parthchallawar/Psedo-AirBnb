@@ -112,7 +112,7 @@ passport.deserializeUser(User.deserializeUser()); // Deserialize user from sessi
 
 
 app.get('/', (req, res) => {
-  res.send('Hello World!');
+  res.redirect("/listings");
 });
 
 
