@@ -13,7 +13,7 @@ module.exports.index = (async (req,res) =>{
 
 module.exports.renderNewForm = (async(req, res) => {
   //console.log(req.user);
-  
+    
   res.render('listings/new.ejs');
 });
 
@@ -100,6 +100,7 @@ module.exports.updateListing = (async (req, res) => {
 });
 module.exports.destroyListing = (async (req, res) => {
   const { id } = req.params;
+  
   
     await Listing.findByIdAndDelete(id);
   console.log('Listing deleted successfully:', id);

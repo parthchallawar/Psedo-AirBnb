@@ -111,16 +111,15 @@ passport.serializeUser(User.serializeUser()); // Serialize user for session
 passport.deserializeUser(User.deserializeUser()); // Deserialize user from session
 
 
-app.get('/', (req, res) => {
-  res.redirect("/listings");
-});
-
-
 app.use((req, res, next) => {
   res.locals.success = req.flash('success'); // Make flash messages available in views
   res.locals.error = req.flash('error'); // Make error messages available in views
   res.locals.currUser = req.user; // Make the current user available in views
   next(); // Call the next middleware
+});
+
+app.get('/', (req, res) => {
+  res.redirect("/listings");
 });
 
 
