@@ -4,7 +4,7 @@ const { listingSchema, reviewSchema } = require('../schema.js'); // Joi schema f
 const Review = require('../models/review.js'); // Review model
 const Listing = require('../models/listing'); // Listing model
 const express = require('express');
-const {isLoggedIn, isOwner} = require('../middleware.js'); // Import the isLoggedIn middleware
+const {isLoggedIn, isOwner, validateListing} = require('../middleware.js'); // Import auth + validation middleware
 const router = express.Router({mergeParams: true}); // Merge params from parent route
 router.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
 const listingsController = require('../controllers/listing.js'); // Import the listings controller
@@ -18,15 +18,6 @@ const upload = multer({ storage }); // Set the destination for uploaded files
 
 // Middleware to parse JSON bodies
 router.use(express.json()); // Middleware to parse JSON bodies
-
-const validateListing = (req, res, next) => {
-     console.log('Validating listing data:', req.body.listing); // Log the nested listing object for debugging
-
-    next();
-  
-}
-
-
 
 //validate review
 const validateReview = (req, res, next) => {
@@ -54,13 +45,13 @@ router.get('/new',isLoggedIn, wrapAsync(listingsController.renderNewForm)); // R
 
 router.route('/:id')
 .get(wrapAsync(listingsController.showListing)) // Show a specific listing
-.put(isLoggedIn,isOwner, upload.single('listing[image][url]'),  wrapAsync(listingsController.updateListing)) // Create a
+.put(isLoggedIn,isOwner, upload.single('listing[image][url]'), validateListing, wrapAsync(listingsController.updateListing)) // Update a listing
 
-.delete(isOwner ,isLoggedIn,wrapAsync(listingsController.destroyListing));
+.delete(isLoggedIn, isOwner, wrapAsync(listingsController.destroyListing));
 
 
 
 // Edit listing route
-router.get('/:id/edit',isOwner ,isLoggedIn,wrapAsync(listingsController.renderEditForm));
+router.get('/:id/edit', isLoggedIn, isOwner, wrapAsync(listingsController.renderEditForm));
 
 module.exports = router;

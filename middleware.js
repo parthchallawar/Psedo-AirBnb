@@ -1,5 +1,8 @@
 const { session } = require("passport");
 const Listing = require("./models/listing.js"); // Import the Listing model
+const Review = require("./models/review.js"); // Review model (used by isReviewAuthor)
+const { listingSchema } = require("./schema.js"); // Joi schema for listing validation
+const ExpressError = require("./utils/ExpressError.js"); // Custom error class
 
 module.exports.isLoggedIn = (req, res, next) => {
   console.log(req.path, "..", req.originalUrl); // Log the user object for debugging
@@ -24,6 +27,10 @@ module.exports.saveRedirectUrl = (req, res, next) => {
 module.exports.isOwner =async (req, res, next) => {
    let {id} = req.params;
   let listing = await Listing.findById(id);
+  if (!listing) {
+    req.flash("error", "Listing not found");
+    return res.redirect("/listings");
+  }
   if (!listing.owner.equals(res.locals.currUser._id)) {
     req.flash("error", "You do not have permission to edit this listing.");
     return res.redirect(`/listings/${id}`);
