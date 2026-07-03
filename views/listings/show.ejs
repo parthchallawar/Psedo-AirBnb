@@ -4,11 +4,41 @@
     <div class="detail-header mt-4 mb-3">
         <h1><%= listing.title %></h1>
         <p class="detail-subtitle"><%= listing.location %>, <%= listing.country %></p>
+        <p class="detail-subtitle">
+            <% if (listing.reviews && listing.reviews.length > 0) { %>
+                <i class="fa-solid fa-star"></i> <%= avgRating(listing.reviews).toFixed(1) %> (<%= listing.reviews.length %> review<%= listing.reviews.length === 1 ? '' : 's' %>)
+            <% } else { %>
+                New listing &mdash; no reviews yet
+            <% } %>
+        </p>
     </div>
 
     <div class="detail-grid">
         <article class="card listing-card detail-main-card">
-            <img src="<%= listing.image.url %>" class="card-img-top show-img" alt="listing image">
+            <% if (listing.images && listing.images.length > 0) { %>
+                <div id="listingCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-inner">
+                        <div class="carousel-item active">
+                            <img src="<%= listing.image.url %>" class="card-img-top show-img" alt="listing image">
+                        </div>
+                        <% listing.images.forEach(function(img) { %>
+                            <div class="carousel-item">
+                                <img src="<%= img.url %>" class="card-img-top show-img" alt="listing image">
+                            </div>
+                        <% }); %>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#listingCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#listingCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            <% } else { %>
+                <img src="<%= listing.image.url %>" class="card-img-top show-img" alt="listing image">
+            <% } %>
             <div class="card-body detail-content">
                 <p class="detail-owner">Owned by: <strong><%= listing.owner ? listing.owner.username : "Unknown host" %></strong></p>
                 <p class="detail-description"><%= listing.description %></p>
@@ -27,6 +57,53 @@
             <button class="btn btn-outline-dark" type="submit">Delete Listing</button>
         </form>
     </div>
+
+    <hr>
+
+    <% if (isOwnerViewing) { %>
+        <section class="owner-bookings-section mt-4">
+            <h4><b>Incoming Bookings</b></h4>
+            <% if (ownerBookings && ownerBookings.length > 0) { %>
+                <div class="row g-3">
+                    <% ownerBookings.forEach(function(b) { %>
+                        <div class="col-lg-4 col-md-6 col-sm-12">
+                            <article class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">@<%= b.user ? b.user.username : "guest" %></h5>
+                                    <p class="card-text"><%= b.checkIn.toDateString() %> &rarr; <%= b.checkOut.toDateString() %></p>
+                                    <p class="card-text">Guests: <%= b.guests %></p>
+                                    <p class="card-text">Total: &#8377;<%= b.totalPrice.toLocaleString("en-IN") %></p>
+                                </div>
+                            </article>
+                        </div>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <p class="text-muted">No bookings yet for this listing.</p>
+            <% } %>
+        </section>
+    <% } else { %>
+        <section class="reserve-section mt-4">
+            <h4><b>Reserve your stay</b></h4>
+            <form method="post" action="/bookings/<%= listing._id %>" class="reserve-form mt-3">
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <label class="form-label" for="checkIn">Check-in:</label>
+                        <input type="date" class="form-control" id="checkIn" name="booking[checkIn]" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="checkOut">Check-out:</label>
+                        <input type="date" class="form-control" id="checkOut" name="booking[checkOut]" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="guests">Guests:</label>
+                        <input type="number" class="form-control" id="guests" name="booking[guests]" min="1" value="1" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-dark mt-3">Reserve</button>
+            </form>
+        </section>
+    <% } %>
 
     <hr>
 

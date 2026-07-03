@@ -31,6 +31,12 @@ const listingSchema = new Schema({
         set : (v) => v==="" ? "https://images.unsplash.com/photo-1527672809634-04ed36500acd?ixlib=rb-1.2.1&q=80&fm=jpg&crop=entropy&cs=tinysrgb&w=1080&fit=max" : v,
         }
     },
+    images: [
+        {
+            url: String,
+            filename: String,
+        }
+    ],
     price: Number,
     location: String,
     country: String,

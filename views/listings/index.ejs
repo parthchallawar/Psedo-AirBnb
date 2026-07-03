@@ -1,165 +1,135 @@
-<%- layout("/layouts/boilerplate") %> 
-<style>
-    #filters {
-display: flex;
-flex-wrap: wrap;
-align-items: center;
-}
-.filter-link {
-text-decoration: none;
-color: inherit;
-}
-.filter {
-text-align: center;
-margin-right: 2rem;
-margin-top: 2rem;
-opacity: 0.7;
-transition: transform 0.2s ease, opacity 0.2s ease;
-}
-.filter p {
-    margin-top: 0.5rem;
-    font-size: 1rem;
-}
-.filter:hover {
-opacity: 1;
-cursor: pointer;
-transform: translateY(-2px);
-}
+<%- layout("/layouts/boilerplate") %>
 
-.filter.active {
-opacity: 1;
-color: #148c8a;
-}
-
-.tax-info {
-    display: none;
-}
-.tax-toggle{
-border: 1px solid black;
-border-radius: 1rem;
-height: 3.2rem;
-padding: 1rem;
-margin-left: 2rem;
-display: flex;
-align-items: center;
-}
-
-</style>
 <body>
-<div id="filters">
-    <a class="filter-link" href="/listings<%= searchQuery ? '?q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= !selectedCategory ? 'active' : '' %>">
-            <div><i class="fa-solid fa-compass"></i></div>
-            <p>All</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Trending<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Trending' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-fire"></i></div>
-            <p>Trending</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Rooms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Rooms' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-bed"></i></div>
-            <p>Rooms</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Iconic%20Cities<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Iconic Cities' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-city"></i></div>
-            <p>Iconic Cities</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Mountains<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Mountains' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-mountain"></i></div>
-            <p>Mountains</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Castles<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Castles' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-chess-rook"></i></div>
-            <p>Castles</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Beachfront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Beachfront' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-umbrella-beach"></i></div>
-            <p>Beachfront</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Lakefront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Lakefront' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-water"></i></div>
-            <p>Lakefront</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Luxury<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Luxury' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-gem"></i></div>
-            <p>Luxury</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Historic%20Stays<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Historic Stays' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-landmark"></i></div>
-            <p>Historic Stays</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Amazing%20Pools<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Amazing Pools' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-water-ladder"></i></div>
-            <p>Amazing Pools</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Camping<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Camping' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-campground"></i></div>
-            <p>Camping</p>
-        </div>
-    </a>
-    <a class="filter-link" href="/listings?category=Farms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
-        <div class="filter <%= selectedCategory === 'Farms' ? 'active' : '' %>">
-            <div><i class="fa-solid fa-tractor"></i></div>
-            <p>Farms</p>
-        </div>
-    </a>
-<div class="tax-toggle ms-8">
-    <div class="form-check-reverse form-switch">
-    <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
-    <label class="form-check-label" for="flexSwitchCheckDefault">Display total after taxes</label>
-</div>
+<div class="toolbar-breakout">
+<section class="explore-toolbar" id="filters">
+    <div class="category-strip" role="tablist" aria-label="Browse by category">
+        <a class="category-chip <%= !selectedCategory ? 'is-active' : '' %>" href="/listings<%= searchQuery ? '?q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-compass"></i></span>
+            <span class="category-chip-label">All</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Trending' ? 'is-active' : '' %>" href="/listings?category=Trending<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-fire"></i></span>
+            <span class="category-chip-label">Trending</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Rooms' ? 'is-active' : '' %>" href="/listings?category=Rooms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-bed"></i></span>
+            <span class="category-chip-label">Rooms</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Iconic Cities' ? 'is-active' : '' %>" href="/listings?category=Iconic%20Cities<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-city"></i></span>
+            <span class="category-chip-label">Iconic Cities</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Mountains' ? 'is-active' : '' %>" href="/listings?category=Mountains<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-mountain"></i></span>
+            <span class="category-chip-label">Mountains</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Castles' ? 'is-active' : '' %>" href="/listings?category=Castles<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-chess-rook"></i></span>
+            <span class="category-chip-label">Castles</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Beachfront' ? 'is-active' : '' %>" href="/listings?category=Beachfront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-umbrella-beach"></i></span>
+            <span class="category-chip-label">Beachfront</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Lakefront' ? 'is-active' : '' %>" href="/listings?category=Lakefront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-water"></i></span>
+            <span class="category-chip-label">Lakefront</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Luxury' ? 'is-active' : '' %>" href="/listings?category=Luxury<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-gem"></i></span>
+            <span class="category-chip-label">Luxury</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Historic Stays' ? 'is-active' : '' %>" href="/listings?category=Historic%20Stays<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-landmark"></i></span>
+            <span class="category-chip-label">Historic Stays</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Amazing Pools' ? 'is-active' : '' %>" href="/listings?category=Amazing%20Pools<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-water-ladder"></i></span>
+            <span class="category-chip-label">Amazing Pools</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Camping' ? 'is-active' : '' %>" href="/listings?category=Camping<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-campground"></i></span>
+            <span class="category-chip-label">Camping</span>
+        </a>
+        <a class="category-chip <%= selectedCategory === 'Farms' ? 'is-active' : '' %>" href="/listings?category=Farms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+            <span class="category-chip-icon"><i class="fa-solid fa-tractor"></i></span>
+            <span class="category-chip-label">Farms</span>
+        </a>
+    </div>
+
+    <div class="toolbar-divider"></div>
+
+    <div class="toolbar-controls">
+        <form method="GET" action="/listings" class="price-sort-form">
+            <input type="hidden" name="q" value="<%= searchQuery %>">
+            <input type="hidden" name="category" value="<%= selectedCategory %>">
+            <div class="field">
+                <label for="minPrice">Min &#8377;</label>
+                <input type="number" id="minPrice" name="minPrice" min="0" value="<%= minPrice %>" class="form-control form-control-sm">
+            </div>
+            <div class="field">
+                <label for="maxPrice">Max &#8377;</label>
+                <input type="number" id="maxPrice" name="maxPrice" min="0" value="<%= maxPrice %>" class="form-control form-control-sm">
+            </div>
+            <div class="field">
+                <label for="sort">Sort</label>
+                <select id="sort" name="sort" class="form-select form-select-sm">
+                    <option value="" <%= sort === "" ? "selected" : "" %>>Default</option>
+                    <option value="newest" <%= sort === "newest" ? "selected" : "" %>>Newest</option>
+                    <option value="priceAsc" <%= sort === "priceAsc" ? "selected" : "" %>>Price: Low to High</option>
+                    <option value="priceDesc" <%= sort === "priceDesc" ? "selected" : "" %>>Price: High to Low</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-sm btn-dark">Apply</button>
+        </form>
+
+        <label class="tax-toggle">
+            <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
+            Show total with taxes
+        </label>
+    </div>
+</section>
 </div>
 
+<% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof selectedCategory !== 'undefined' && selectedCategory)) { %>
+    <div class="active-filters-note">
+        <% if (searchQuery) { %>
+            <p class="mb-1"><b>Search:</b> "<%= searchQuery %>"</p>
+        <% } %>
+        <% if (selectedCategory) { %>
+            <p class="mb-1"><b>Category:</b> <%= selectedCategory %></p>
+        <% } %>
+        <% if (listings.length === 0) { %>
+            <p class="text-muted mb-0">No listings found. Try another keyword.</p>
+        <% } %>
     </div>
-        <% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof selectedCategory !== 'undefined' && selectedCategory)) { %>
-        <div class="mb-3 mt-2">
-                        <% if (searchQuery) { %>
-                            <p class="mb-1"><b>Search:</b> "<%= searchQuery %>"</p>
-                        <% } %>
-                        <% if (selectedCategory) { %>
-                            <p class="mb-1"><b>Category:</b> <%= selectedCategory %></p>
-                        <% } %>
-            <% if (listings.length === 0) { %>
-                <p class="text-muted mb-0">No listings found. Try another keyword.</p>
-            <% } %>
-        </div>
-    <% } %>
-    <div class="row row-cols-lg-3  row-cols-md-2 row-cols-sm-1 ">
+<% } %>
+
+<div class="listings-grid-wrap">
+    <div class="row row-cols-1 row-cols-sm-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4">
        <% for (let listing of listings){ %>
         <a href="/listings/<%= listing._id %>" class="listing-link">
-             <div class="card col listing-card" >
-        <img  src="<%= listing.image.url %>" 
-        class ="card-img-top"  
-        alt="listing_img" 
-        style="height:20rem"/>
-        <div class="card-img-overlay">parth</div>
+             <div class="card col listing-card">
+        <img src="<%= listing.image.url %>"
+        class="card-img-top listing-thumb"
+        alt="listing_img"/>
+        <div class="card-img-overlay">
+            <span class="card-hover-hint">View listing &rarr;</span>
+        </div>
         <div class="card-body">
             <p class="card-text"><b><%=listing.title %></b>
             <br>
+            <span class="rating-line">
+                <% if (listing.reviews && listing.reviews.length > 0) { %>
+                    <i class="fa-solid fa-star"></i> <%= avgRating(listing.reviews).toFixed(1) %> (<%= listing.reviews.length %>)
+                <% } else { %>
+                    New
+                <% } %>
+            </span>
+            <br>
             <%=listing.description %>
-            <br>    
+            <br>
              &#8377;<%= listing.price.toLocaleString("en-IN") %> /night
              <i class="tax-info">&nbsp; &nbsp; +18 % GST </i>
             <br>
@@ -167,11 +137,11 @@ align-items: center;
         </div>
     </div>
         </a>
-   
+
  <%}%>
-    </div> 
- 
-  
+    </div>
+</div>
+
 </body>
 <script>
     let taxSwitch = document.getElementById("flexSwitchCheckDefault");
@@ -185,6 +155,5 @@ align-items: center;
             }
         }
     });
-    
+
 </script>
- 

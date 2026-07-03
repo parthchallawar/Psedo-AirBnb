@@ -1,7 +1,8 @@
 const { session } = require("passport");
 const Listing = require("./models/listing.js"); // Import the Listing model
 const Review = require("./models/review.js"); // Review model (used by isReviewAuthor)
-const { listingSchema } = require("./schema.js"); // Joi schema for listing validation
+const Booking = require("./models/booking.js"); // Booking model (used by isBookingOwner)
+const { listingSchema, bookingSchema } = require("./schema.js"); // Joi schemas for validation
 const ExpressError = require("./utils/ExpressError.js"); // Custom error class
 
 module.exports.isLoggedIn = (req, res, next) => {
@@ -55,11 +56,36 @@ module.exports.validateListing = (req, res, next) => {
 
   if (error) {
     let errorMessage = error.details.map(el => el.message).join(', ');
-    throw new ExpressError(400, errorMessage); 
+    throw new ExpressError(400, errorMessage);
   } else{
     next();
   }
 
+};
+
+module.exports.validateBooking = (req, res, next) => {
+  let { error } = bookingSchema.validate(req.body); // Validate the booking data using Joi schema
+
+  if (error) {
+    let errorMessage = error.details.map(el => el.message).join(', ');
+    throw new ExpressError(400, errorMessage);
+  } else {
+    next();
+  }
+};
+
+module.exports.isBookingOwner = async (req, res, next) => {
+  let { bookingId } = req.params;
+  let booking = await Booking.findById(bookingId);
+  if (!booking) {
+    req.flash("error", "Booking not found");
+    return res.redirect("/bookings");
+  }
+  if (!booking.user.equals(res.locals.currUser._id)) {
+    req.flash("error", "You do not have permission to cancel this booking.");
+    return res.redirect("/bookings");
+  }
+  next();
 };
 
 

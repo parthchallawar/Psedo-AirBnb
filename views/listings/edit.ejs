@@ -33,6 +33,20 @@
                         <div class="invalid-feedback"> please enter the valid image url </div>
                     </div>
 
+                    <br><br>
+                    <div class="mb-3">
+                        <% if (listing.images && listing.images.length > 0) { %>
+                            <label class="form-label">Current gallery photos</label>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <% listing.images.forEach(function(img) { %>
+                                    <img src="<%= img.url %>" style="max-width: 100px; height: auto; border-radius: 8px;">
+                                <% }); %>
+                            </div>
+                        <% } %>
+                        <label for="images" class="form-label">Replace gallery photos (optional, up to 5):</label>
+                        <input type="file" class="form-control" id="images" name="images" multiple accept="image/*">
+                    </div>
+
                     <br> <br>
                     <div class="mb-3">
                         <label class="form-label" for="price">Price:</label>

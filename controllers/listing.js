@@ -1,4 +1,5 @@
 const Listing = require('../models/listing.js'); // Import the Listing model
+const Booking = require('../models/booking.js'); // Booking model (used to show owner bookings)
 const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken = process.env.MAP_TOKEN;
 const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
@@ -20,9 +21,21 @@ const FILTER_CATEGORIES = [
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+const avgRating = (reviews = []) =>
+  reviews.length ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : 0;
+
+const SORT_OPTIONS = {
+  priceAsc: { price: 1 },
+  priceDesc: { price: -1 },
+  newest: { _id: -1 },
+};
+
 module.exports.index = (async (req,res) =>{
   const q = (req.query.q || "").trim();
   const selectedCategory = (req.query.category || "").trim();
+  const minPrice = (req.query.minPrice || "").trim();
+  const maxPrice = (req.query.maxPrice || "").trim();
+  const sort = (req.query.sort || "").trim();
   const query = {};
 
   if (q) {
@@ -39,13 +52,30 @@ module.exports.index = (async (req,res) =>{
     query.category = selectedCategory;
   }
 
-  const listings = await Listing.find(query);
+  const min = Number(minPrice);
+  const max = Number(maxPrice);
+  if (minPrice !== "" && !Number.isNaN(min)) {
+    query.price = { ...query.price, $gte: min };
+  }
+  if (maxPrice !== "" && !Number.isNaN(max)) {
+    query.price = { ...query.price, $lte: max };
+  }
+
+  let cursor = Listing.find(query).populate("reviews");
+  if (SORT_OPTIONS[sort]) {
+    cursor = cursor.sort(SORT_OPTIONS[sort]);
+  }
+  const listings = await cursor;
 
   res.render("listings/index", {
     listings,
     searchQuery: q,
     selectedCategory,
-    categories: FILTER_CATEGORIES
+    minPrice,
+    maxPrice,
+    sort,
+    categories: FILTER_CATEGORIES,
+    avgRating
   });
 });
 
@@ -66,13 +96,18 @@ module.exports.showListing = (async (req, res) => {
   if (!listing) {
     req.flash('error','Listing not found in the database'); // Flash message for error
     // return res.status(404).send('Listing not found');
-    res.redirect('/listings'); 
+    res.redirect('/listings');
   }
   else{
-    // Example in your listings controller or route
-res.render('listings/show', { listing, mapToken });
+    let ownerBookings = null;
+    const isOwnerViewing = res.locals.currUser && listing.owner &&
+      listing.owner._id.equals(res.locals.currUser._id);
+    if (isOwnerViewing) {
+      ownerBookings = await Booking.find({ listing: listing._id }).populate("user");
+    }
+    res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings });
   }
-  
+
 });
 
 module.exports.createListing = (async (req, res,next) => {
@@ -83,20 +118,23 @@ module.exports.createListing = (async (req, res,next) => {
 })
 
   .send();
-  let url = req.file.path;
-  let filename = req.file.filename;
   console.log('Received data:', req.body);
   console.log(req.body);
   if (!req.body.listing) {
-    throw new ExpressError(400, 'Listing data is required'); 
+    throw new ExpressError(400, 'Listing data is required');
   }
-  
+
   const newListing = new Listing(req.body.listing); // Use req.body.listing to access the nested object
   newListing.owner = req.user._id; // Set the owner field to the current user's ID
-  newListing.image = {
-    url: url, // Use the URL from the uploaded file 
-    filename: filename, // Use the filename from the uploaded file
-  };
+  const cover = req.files?.['listing[image][url]']?.[0];
+  if (cover) {
+    newListing.image = {
+      url: cover.path, // Use the URL from the uploaded file
+      filename: cover.filename, // Use the filename from the uploaded file
+    };
+  }
+  const gallery = req.files?.['images'] || [];
+  newListing.images = gallery.map(f => ({ url: f.path, filename: f.filename }));
   newListing.geometry = response.body.features[0].geometry;
     await newListing.save();
     console.log('Listing created successfully:', newListing);
@@ -119,18 +157,23 @@ module.exports.createListing = (async (req, res,next) => {
 module.exports.updateListing = (async (req, res) => {
   let {id} = req.params;
   await Listing.findByIdAndUpdate(id, {...req.body.listing});// Extract the fields from req.body.listing
-  if(typeof req.file !== 'undefined'){
-    let url = req.file.path;
-    let filename = req.file.filename;
+  const cover = req.files?.['listing[image][url]']?.[0];
+  const gallery = req.files?.['images'] || [];
+  if (cover || gallery.length) {
     // Fetch the updated listing document
     let listing = await Listing.findById(id);
-    listing.image = {
-      url: url, // Use the URL from the uploaded file 
-      filename: filename, // Use the filename from the uploaded file
-    };
+    if (cover) {
+      listing.image = {
+        url: cover.path, // Use the URL from the uploaded file
+        filename: cover.filename, // Use the filename from the uploaded file
+      };
+    }
+    if (gallery.length) {
+      listing.images = gallery.map(f => ({ url: f.path, filename: f.filename }));
+    }
     await listing.save(); // Save the updated listing
   }
-  
+
   console.log('Listing updated successfully:', req.body.listing);
   req.flash('success', 'Listing updated successfully!'); // Flash message for success
   res.redirect(`/listings/${id}`); // Redirect to the listings page after successful update

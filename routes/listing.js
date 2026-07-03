@@ -11,6 +11,10 @@ const listingsController = require('../controllers/listing.js'); // Import the l
 const multer = require('multer'); // Import multer for file uploads
 const {storage} = require('../cloudConfig.js'); // Import Cloudinary storage configuration 
 const upload = multer({ storage }); // Set the destination for uploaded files
+const uploadFields = upload.fields([
+  { name: 'listing[image][url]', maxCount: 1 }, // cover photo
+  { name: 'images', maxCount: 5 }, // gallery photos
+]);
 
 
 
@@ -35,7 +39,7 @@ router.route("/")
 .get(wrapAsync(listingsController.index))
 .post(
   isLoggedIn,
-  upload.single('listing[image][url]'),
+  uploadFields,
   validateListing,
   wrapAsync(listingsController.createListing)
 ); // Handle file upload and create listing
@@ -45,7 +49,7 @@ router.get('/new',isLoggedIn, wrapAsync(listingsController.renderNewForm)); // R
 
 router.route('/:id')
 .get(wrapAsync(listingsController.showListing)) // Show a specific listing
-.put(isLoggedIn,isOwner, upload.single('listing[image][url]'), validateListing, wrapAsync(listingsController.updateListing)) // Update a listing
+.put(isLoggedIn,isOwner, uploadFields, validateListing, wrapAsync(listingsController.updateListing)) // Update a listing
 
 .delete(isLoggedIn, isOwner, wrapAsync(listingsController.destroyListing));
 

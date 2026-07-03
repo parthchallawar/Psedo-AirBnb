@@ -36,6 +36,24 @@ body {
     animation: page-enter 0.65s ease-out both;
 }
 
+/* Lets the listings grid and the toolbar above it breathe wider than the
+   standard container on large screens, so four cards sit comfortably in
+   one row and the category strip has room to spread out. */
+@media (min-width: 1200px) {
+    .listings-grid-wrap,
+    .toolbar-breakout {
+        position: relative;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100vw;
+        max-width: 1560px;
+    }
+
+    .listings-grid-wrap {
+        padding: 0 1.5rem;
+    }
+}
+
 .navbar {
     margin-bottom: 20px;
     background: rgba(255, 255, 255, 0.78) !important;
@@ -139,6 +157,16 @@ body {
     transition: transform 0.45s ease;
 }
 
+.listing-thumb {
+    height: 15rem;
+}
+
+@media (min-width: 1200px) {
+    .listing-thumb {
+        height: 14rem;
+    }
+}
+
 .listing-card:hover .card-img-top {
     transform: scale(1.04);
 }
@@ -154,15 +182,34 @@ body {
     line-height: 1.45;
 }
 
+.rating-line {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+}
+
+.rating-line .fa-star {
+    color: var(--brand);
+}
+
 .listing-link {
     text-decoration: none !important;
     color: var(--ink) !important;
 }
 
 .card-img-overlay {
+    display: flex;
+    align-items: flex-end;
     opacity: 0;
-    background: linear-gradient(to top, rgba(19, 33, 40, 0.2), transparent 55%);
+    background: linear-gradient(to top, rgba(19, 33, 40, 0.45), transparent 55%);
     transition: opacity 0.3s ease;
+}
+
+.card-hover-hint {
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 .listing-card:hover .card-img-overlay {
@@ -211,21 +258,173 @@ form {
     box-shadow: 0 0 0 3px rgba(20, 140, 138, 0.13);
 }
 
-.tax-toggle {
-    border: 1px solid var(--border) !important;
-    background: rgba(255, 255, 255, 0.72);
+/* ---- Explore toolbar: category strip + price/sort/tax controls ---- */
+
+.explore-toolbar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
     box-shadow: var(--shadow-soft);
+    padding: 1.1rem 1.1rem 1rem;
+    margin: 1.5rem 0 1.75rem;
 }
 
-#filters .filter {
+.category-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.35rem;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.category-strip::-webkit-scrollbar {
+    display: none;
+}
+
+.category-chip {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 4.5rem;
+    padding: 0.5rem 0.25rem 0.35rem;
     border-radius: 14px;
-    padding: 0.45rem 0.7rem;
-    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease;
+    text-decoration: none !important;
+    color: var(--ink-soft) !important;
+    opacity: 0.75;
+    transition: opacity 0.2s ease, transform 0.2s ease, background-color 0.2s ease, color 0.2s ease;
 }
 
-#filters .filter:hover {
-    background: rgba(20, 140, 138, 0.1);
+.category-chip:hover {
+    opacity: 1;
+    color: var(--ink) !important;
+    background: rgba(20, 140, 138, 0.08);
     transform: translateY(-2px);
+}
+
+.category-chip-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    border-radius: 50%;
+    background: rgba(19, 33, 40, 0.055);
+    font-size: 0.92rem;
+    transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.category-chip-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.category-chip.is-active {
+    opacity: 1;
+    color: var(--accent) !important;
+}
+
+.category-chip.is-active .category-chip-icon {
+    background: var(--accent);
+    color: #fff;
+    transform: scale(1.06);
+}
+
+/* On roomy screens the strip no longer needs to scroll: let every chip
+   grow to share the full width evenly, with larger icons to match. */
+@media (min-width: 992px) {
+    .category-strip {
+        overflow-x: visible;
+        gap: 0.2rem;
+    }
+
+    .category-chip {
+        flex: 1 1 0;
+        width: auto;
+        padding: 0.6rem 0.25rem 0.5rem;
+    }
+
+    .category-chip-icon {
+        width: 2.9rem;
+        height: 2.9rem;
+        font-size: 1.2rem;
+    }
+
+    .category-chip-label {
+        font-size: 0.76rem;
+    }
+}
+
+.toolbar-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.85rem 0 0.9rem;
+}
+
+.toolbar-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.9rem 1.5rem;
+}
+
+.price-sort-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.7rem;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+.price-sort-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+}
+
+.price-sort-form label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+}
+
+.price-sort-form input[type="number"] {
+    width: 6.2rem;
+}
+
+.tax-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    border: 1px solid var(--border) !important;
+    background: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: var(--ink-soft);
+    white-space: nowrap;
+}
+
+.active-filters-note {
+    margin: 0 0 1rem;
+}
+
+.tax-info {
+    display: none;
 }
 
 .show-img {
@@ -441,6 +640,28 @@ form {
 
     .detail-actions-row .btn {
         width: 100%;
+    }
+
+    .explore-toolbar {
+        padding: 0.9rem 0.9rem 0.85rem;
+        margin: 1.1rem 0 1.3rem;
+    }
+
+    .toolbar-controls {
+        align-items: stretch;
+    }
+
+    .price-sort-form {
+        width: 100%;
+    }
+
+    .price-sort-form .field {
+        flex: 1 1 auto;
+    }
+
+    .tax-toggle {
+        width: 100%;
+        justify-content: center;
     }
 }
 

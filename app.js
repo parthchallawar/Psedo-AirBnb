@@ -19,6 +19,7 @@ const Review = require('./models/review.js'); // Review model
 const listingsRouter = require('./routes/listing.js'); // Import the listings routes
 const reviewsRouter = require('./routes/review.js'); // Import the reviews routes
 const userRouter = require('./routes/user.js'); // Import the user routes
+const bookingsRouter = require('./routes/booking.js'); // Import the bookings routes
 const session = require('express-session');
 const MongoStore = require("connect-mongo");
 const flash = require('connect-flash'); // Flash messages for Express
@@ -36,7 +37,7 @@ const store = MongoStore.create({
   touchAfter: 24* 3600,
 });
 
-store.on("error",() => {
+store.on("error",(err) => {
     console.log("error in  mongo session",err)
 });
 
@@ -101,6 +102,15 @@ const validateReview = (req, res, next) => {
   }
 }
 
+app.use((req, res, next) => {
+  // Safe defaults so error.ejs (and its navbar/flash includes) can always render,
+  // even if session/flash/passport below throws before the real values are set.
+  res.locals.currUser = null;
+  res.locals.success = [];
+  res.locals.error = [];
+  next();
+});
+
 app.use(session(sessionOptions));
 app.use(flash()); // Use flash messages in the application
 
@@ -129,6 +139,7 @@ app.use((req, res, next) => {
 
 app.use('/listings', listingsRouter); // Use the listings routes and mount them at the /listings path
 app.use('/listings/:id/reviews', reviewsRouter); // Use the reviews routes and mount them at the /listings/:id/reviews path
+app.use('/bookings', bookingsRouter); // Use the bookings routes and mount them at the /bookings path
 app.use('/', userRouter); // Use the user routes and mount them at the /user path
 
 app.use((err,req, res, next) => {

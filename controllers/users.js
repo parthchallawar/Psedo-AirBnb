@@ -1,4 +1,6 @@
-const User = require("../models/user.js"); 
+const User = require("../models/user.js");
+const Listing = require("../models/listing.js");
+const Booking = require("../models/booking.js");
 
 module.exports.signup = (async (req, res) => {
     try{
@@ -45,4 +47,10 @@ module.exports.logout = ((req, res, next) => {
         req.flash("success", "Logged out successfully!");
         res.redirect("/login"); // Redirect to login page after logout
     });
+});
+
+module.exports.renderProfile = (async (req, res) => {
+    const listings = await Listing.find({ owner: req.user._id });
+    const trips = await Booking.find({ user: req.user._id }).populate("listing");
+    res.render("users/profile.ejs", { listings, trips });
 });
