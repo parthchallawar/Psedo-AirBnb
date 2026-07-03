@@ -2,6 +2,21 @@ const mongoose= require('mongoose');
 const Schema = mongoose.Schema;
 const Review = require('./review.js'); // Import the Review model
 
+const LISTING_CATEGORIES = [
+    'Trending',
+    'Rooms',
+    'Iconic Cities',
+    'Mountains',
+    'Castles',
+    'Beachfront',
+    'Lakefront',
+    'Luxury',
+    'Historic Stays',
+    'Amazing Pools',
+    'Camping',
+    'Farms'
+];
+
 const listingSchema = new Schema({
     title: {
         type: String,
@@ -19,6 +34,11 @@ const listingSchema = new Schema({
     price: Number,
     location: String,
     country: String,
+    category: {
+        type: String,
+        enum: LISTING_CATEGORIES,
+        default: 'Trending'
+    },
     reviews: [
         {
             type: Schema.Types.ObjectId,

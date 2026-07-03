@@ -5,11 +5,16 @@ display: flex;
 flex-wrap: wrap;
 align-items: center;
 }
+.filter-link {
+text-decoration: none;
+color: inherit;
+}
 .filter {
 text-align: center;
 margin-right: 2rem;
 margin-top: 2rem;
 opacity: 0.7;
+transition: transform 0.2s ease, opacity 0.2s ease;
 }
 .filter p {
     margin-top: 0.5rem;
@@ -18,6 +23,12 @@ opacity: 0.7;
 .filter:hover {
 opacity: 1;
 cursor: pointer;
+transform: translateY(-2px);
+}
+
+.filter.active {
+opacity: 1;
+color: #148c8a;
 }
 
 .tax-info {
@@ -36,38 +47,84 @@ align-items: center;
 </style>
 <body>
 <div id="filters">
-    <div class="filter">
-        <div><i class="fa-solid fa-fire"></i></div>
-        <p>Trending</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-bed"></i></div>
-        <p>Rooms</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-city"></i></div>
-        <p>Iconic Cities</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-mountain"></i></div>
-        <p>Mountains</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-chess-rook"></i></div>
-        <p>Castles</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-water-ladder"></i></div>
-        <p>Amazing Pools</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-campground"></i></div>
-        <p>Camping</p>
-    </div>
-    <div class="filter">
-        <div><i class="fa-solid fa-tractor"></i></div>
-        <p>Farms</p>
-    </div>
+    <a class="filter-link" href="/listings<%= searchQuery ? '?q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= !selectedCategory ? 'active' : '' %>">
+            <div><i class="fa-solid fa-compass"></i></div>
+            <p>All</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Trending<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Trending' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-fire"></i></div>
+            <p>Trending</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Rooms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Rooms' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-bed"></i></div>
+            <p>Rooms</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Iconic%20Cities<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Iconic Cities' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-city"></i></div>
+            <p>Iconic Cities</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Mountains<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Mountains' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-mountain"></i></div>
+            <p>Mountains</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Castles<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Castles' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-chess-rook"></i></div>
+            <p>Castles</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Beachfront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Beachfront' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-umbrella-beach"></i></div>
+            <p>Beachfront</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Lakefront<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Lakefront' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-water"></i></div>
+            <p>Lakefront</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Luxury<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Luxury' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-gem"></i></div>
+            <p>Luxury</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Historic%20Stays<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Historic Stays' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-landmark"></i></div>
+            <p>Historic Stays</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Amazing%20Pools<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Amazing Pools' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-water-ladder"></i></div>
+            <p>Amazing Pools</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Camping<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Camping' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-campground"></i></div>
+            <p>Camping</p>
+        </div>
+    </a>
+    <a class="filter-link" href="/listings?category=Farms<%= searchQuery ? '&q=' + encodeURIComponent(searchQuery) : '' %>">
+        <div class="filter <%= selectedCategory === 'Farms' ? 'active' : '' %>">
+            <div><i class="fa-solid fa-tractor"></i></div>
+            <p>Farms</p>
+        </div>
+    </a>
 <div class="tax-toggle ms-8">
     <div class="form-check-reverse form-switch">
     <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
@@ -76,6 +133,19 @@ align-items: center;
 </div>
 
     </div>
+        <% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof selectedCategory !== 'undefined' && selectedCategory)) { %>
+        <div class="mb-3 mt-2">
+                        <% if (searchQuery) { %>
+                            <p class="mb-1"><b>Search:</b> "<%= searchQuery %>"</p>
+                        <% } %>
+                        <% if (selectedCategory) { %>
+                            <p class="mb-1"><b>Category:</b> <%= selectedCategory %></p>
+                        <% } %>
+            <% if (listings.length === 0) { %>
+                <p class="text-muted mb-0">No listings found. Try another keyword.</p>
+            <% } %>
+        </div>
+    <% } %>
     <div class="row row-cols-lg-3  row-cols-md-2 row-cols-sm-1 ">
        <% for (let listing of listings){ %>
         <a href="/listings/<%= listing._id %>" class="listing-link">

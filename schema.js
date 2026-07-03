@@ -1,6 +1,21 @@
 const Joi=require('joi');
 const { model } = require('mongoose');
 
+const LISTING_CATEGORIES = [
+    'Trending',
+    'Rooms',
+    'Iconic Cities',
+    'Mountains',
+    'Castles',
+    'Beachfront',
+    'Lakefront',
+    'Luxury',
+    'Historic Stays',
+    'Amazing Pools',
+    'Camping',
+    'Farms'
+];
+
 const listingSchema = Joi.object({
     listing: Joi.object({
         title: Joi.string().required(),
@@ -11,9 +26,12 @@ const listingSchema = Joi.object({
         }).required(),
         price: Joi.number().min(0).required(),
         location: Joi.string().required(),
-        country: Joi.string().required()
+        country: Joi.string().required(),
+        category: Joi.string().valid(...LISTING_CATEGORIES).required()
     }).required()
 });
+
+    module.exports.listingSchema = listingSchema;
 
 module.exports.reviewSchema = Joi.object({
     review: Joi.object({

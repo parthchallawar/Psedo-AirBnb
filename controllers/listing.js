@@ -3,12 +3,50 @@ const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken = process.env.MAP_TOKEN;
 const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
 
+const FILTER_CATEGORIES = [
+  'Trending',
+  'Rooms',
+  'Iconic Cities',
+  'Mountains',
+  'Castles',
+  'Beachfront',
+  'Lakefront',
+  'Luxury',
+  'Historic Stays',
+  'Amazing Pools',
+  'Camping',
+  'Farms'
+];
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 module.exports.index = (async (req,res) =>{
-  // Listing.find({}).then((res) => {
-  //   console.log(res);
-  // });
-  const listings = await Listing.find({});
-  res.render("listings/index",{listings});
+  const q = (req.query.q || "").trim();
+  const selectedCategory = (req.query.category || "").trim();
+  const query = {};
+
+  if (q) {
+    const safePattern = new RegExp(escapeRegex(q), "i");
+    query.$or = [
+      { title: safePattern },
+      { location: safePattern },
+      { country: safePattern },
+      { description: safePattern }
+    ];
+  }
+
+  if (FILTER_CATEGORIES.includes(selectedCategory)) {
+    query.category = selectedCategory;
+  }
+
+  const listings = await Listing.find(query);
+
+  res.render("listings/index", {
+    listings,
+    searchQuery: q,
+    selectedCategory,
+    categories: FILTER_CATEGORIES
+  });
 });
 
 module.exports.renderNewForm = (async(req, res) => {

@@ -44,6 +44,26 @@
 
             <br> <br>
             <div class="mb-3">
+                <label class="form-label" for="category">Category:</label>
+                <select class="form-select" id="category" name="listing[category]" required>
+                    <option value="Trending" selected>Trending</option>
+                    <option value="Rooms">Rooms</option>
+                    <option value="Iconic Cities">Iconic Cities</option>
+                    <option value="Mountains">Mountains</option>
+                    <option value="Castles">Castles</option>
+                    <option value="Beachfront">Beachfront</option>
+                    <option value="Lakefront">Lakefront</option>
+                    <option value="Luxury">Luxury</option>
+                    <option value="Historic Stays">Historic Stays</option>
+                    <option value="Amazing Pools">Amazing Pools</option>
+                    <option value="Camping">Camping</option>
+                    <option value="Farms">Farms</option>
+                </select>
+                <div class="invalid-feedback">please choose a category</div>
+            </div>
+
+            <br> <br>
+            <div class="mb-3">
                 <label class="form-label" for="location">Location:</label>
                 <input type="text" class="form-control" id="location" name="listing[location]" required>
                 <div class="invalid-feedback">please enter a valid location</div>

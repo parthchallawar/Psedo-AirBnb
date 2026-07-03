@@ -52,6 +52,26 @@
 
                     <br> <br>
                     <div class="mb-3">
+                        <label class="form-label" for="category">Category:</label>
+                        <select class="form-select" id="category" name="listing[category]" required>
+                            <option value="Trending" <%= listing.category === 'Trending' ? 'selected' : '' %>>Trending</option>
+                            <option value="Rooms" <%= listing.category === 'Rooms' ? 'selected' : '' %>>Rooms</option>
+                            <option value="Iconic Cities" <%= listing.category === 'Iconic Cities' ? 'selected' : '' %>>Iconic Cities</option>
+                            <option value="Mountains" <%= listing.category === 'Mountains' ? 'selected' : '' %>>Mountains</option>
+                            <option value="Castles" <%= listing.category === 'Castles' ? 'selected' : '' %>>Castles</option>
+                            <option value="Beachfront" <%= listing.category === 'Beachfront' ? 'selected' : '' %>>Beachfront</option>
+                            <option value="Lakefront" <%= listing.category === 'Lakefront' ? 'selected' : '' %>>Lakefront</option>
+                            <option value="Luxury" <%= listing.category === 'Luxury' ? 'selected' : '' %>>Luxury</option>
+                            <option value="Historic Stays" <%= listing.category === 'Historic Stays' ? 'selected' : '' %>>Historic Stays</option>
+                            <option value="Amazing Pools" <%= listing.category === 'Amazing Pools' ? 'selected' : '' %>>Amazing Pools</option>
+                            <option value="Camping" <%= listing.category === 'Camping' ? 'selected' : '' %>>Camping</option>
+                            <option value="Farms" <%= listing.category === 'Farms' ? 'selected' : '' %>>Farms</option>
+                        </select>
+                        <div class="invalid-feedback"> please choose the valid category </div>
+                    </div>
+
+                    <br> <br>
+                    <div class="mb-3">
                         <label class="form-label" for="location">Location:</label>
                         <input class="form-control" type="text" id="location" name="listing[location]"
                             value="<%=listing.location%>" required>

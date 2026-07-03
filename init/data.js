@@ -347,6 +347,198 @@ const sampleListings = [
     location: "Costa Rica",
     country: "Costa Rica",
   },
+  {
+    title: "Canal-Side Studio in Copenhagen",
+    description:
+      "A bright minimal studio near Nyhavn with bike access to museums, cafes, and the harborfront.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1513622470522-26c3c8a854bc?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1700,
+    location: "Copenhagen",
+    country: "Denmark",
+  },
+  {
+    title: "Cliffside Apartment in Lisbon",
+    description:
+      "Wake up to Tagus River views from this renovated apartment in Alfama, steps from tram routes.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1513735492246-483525079686?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1400,
+    location: "Lisbon",
+    country: "Portugal",
+  },
+  {
+    title: "Riad Courtyard Stay in Marrakech",
+    description:
+      "Traditional riad with mosaic interiors, rooftop tea service, and quick access to souks.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1300,
+    location: "Marrakech",
+    country: "Morocco",
+  },
+  {
+    title: "Old Town Flat in Prague",
+    description:
+      "Historic flat with vaulted ceilings, walkable to Charles Bridge and the Astronomical Clock.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1541849546-216549ae216d?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1250,
+    location: "Prague",
+    country: "Czech Republic",
+  },
+  {
+    title: "Harbor Loft in Sydney",
+    description:
+      "Contemporary loft with balcony views, close to Circular Quay ferries and waterfront dining.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1506973035872-a4f23b385aee?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 2400,
+    location: "Sydney",
+    country: "Australia",
+  },
+  {
+    title: "Desert Camp Suite in Wadi Rum",
+    description:
+      "A premium Bedouin-style tent stay with stargazing decks in Jordan's red desert valley.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1150,
+    location: "Wadi Rum",
+    country: "Jordan",
+  },
+  {
+    title: "Waterfront Cabin in Queenstown",
+    description:
+      "Relax by Lake Wakatipu in a warm cedar cabin near hiking trails and alpine viewpoints.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 2100,
+    location: "Queenstown",
+    country: "New Zealand",
+  },
+  {
+    title: "Art District Apartment in Buenos Aires",
+    description:
+      "Stylish Palermo apartment surrounded by galleries, tango bars, and late-night cafes.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1470123808288-1e59739c5f7f?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1350,
+    location: "Buenos Aires",
+    country: "Argentina",
+  },
+  {
+    title: "Seafront Home in Dubrovnik",
+    description:
+      "Stone house with Adriatic views just outside the medieval walls of Dubrovnik Old Town.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 2600,
+    location: "Dubrovnik",
+    country: "Croatia",
+  },
+  {
+    title: "Vineyard Guesthouse in Napa Valley",
+    description:
+      "Quiet guesthouse between boutique wineries with private patio and sunset vineyard views.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1516594798947-e65505dbb29d?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 2800,
+    location: "Napa Valley",
+    country: "United States",
+  },
+  {
+    title: "Northern Lights Lodge in Tromso",
+    description:
+      "Glass-roof lodge designed for aurora viewing, with sauna and fjord excursions nearby.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1416339306562-f3d12fefd36f?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 3200,
+    location: "Tromso",
+    country: "Norway",
+  },
+  {
+    title: "Colonial Courtyard House in Cartagena",
+    description:
+      "A colorful old-town stay with shaded courtyard, balconies, and easy walks to city walls.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1504609773096-104ff2c73ba4?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1550,
+    location: "Cartagena",
+    country: "Colombia",
+  },
+  {
+    title: "Lakeside Retreat in Hallstatt",
+    description:
+      "Compact alpine home overlooking Hallstatter See, ideal for scenic walks and boat rides.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1900,
+    location: "Hallstatt",
+    country: "Austria",
+  },
+  {
+    title: "Riverfront Stay in Budapest",
+    description:
+      "Elegant apartment near the Danube with access to thermal baths and famous ruin bars.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 1450,
+    location: "Budapest",
+    country: "Hungary",
+  },
+  {
+    title: "Tea Hills Bungalow in Nuwara Eliya",
+    description:
+      "A colonial bungalow surrounded by tea estates, cool weather, and mountain train views.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1472396961693-142e6e269027?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 980,
+    location: "Nuwara Eliya",
+    country: "Sri Lanka",
+  },
+  {
+    title: "City Penthouse in Seoul",
+    description:
+      "Modern penthouse in Gangnam with skyline views, fast transit, and great food streets nearby.",
+    image: {
+      filename: "listingimage",
+      url: "https://images.unsplash.com/photo-1538485399081-7c897f7c5c9d?auto=format&fit=crop&w=800&q=60",
+    },
+    price: 2300,
+    location: "Seoul",
+    country: "South Korea",
+  },
 ];
 
 module.exports = { data: sampleListings };

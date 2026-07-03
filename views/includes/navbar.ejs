@@ -1,27 +1,4 @@
-<style>
-    .search-btn{
-        background-color: #fe424d;
-        color : white;
-        border-radius: 25px;
-        padding:  0 1rem 0 1rem;
-    }
-      .search-btn:hover{
-        background-color: #fe424d;
-        color : white;
-    }
-    .search-btn{
-        display: inline;
-        margin-right: 0.5rem;
-    }
-    .search-inp{
-        border-radius: 25px;
-        padding: 0.5rem 3rem 0.5rem 1rem;
-        font-size: 1rem;
-    }
-
-</style>
-
-<nav class="navbar navbar-expand-md bg-body-light border-bottom sticky-top">
+<nav class="navbar navbar-expand-md sticky-top">
     <div class="container-fluid">
         <a class="navbar-brand" href="/listings"><i class="fa-solid fa-compass"></i></a>
         <button class="navbar-toggler" type="button" 
@@ -38,8 +15,8 @@
                 
         </div>
 <div class="navbar-nav ms-auto">
-    <form class="d-flex" role="search" ms->
-        <input class="form-control me-2 search-inp" type="search" placeholder="Search destination" aria-label="Search">
+    <form class="d-flex" role="search" action="/listings" method="GET">
+        <input class="form-control me-2 search-inp" type="search" name="q" value="<%= typeof searchQuery !== 'undefined' ? searchQuery : '' %>" placeholder="Search destination" aria-label="Search">
         <button class="btn search-btn" type="submit">Search</button>
     </form>
 </div>

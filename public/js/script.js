@@ -16,3 +16,48 @@
     }, false)
   })
 })()
+
+document.addEventListener('DOMContentLoaded', () => {
+  const navbar = document.querySelector('.navbar')
+
+  const syncNavbarState = () => {
+    if (!navbar) return
+    if (window.scrollY > 8) {
+      navbar.classList.add('is-scrolled')
+    } else {
+      navbar.classList.remove('is-scrolled')
+    }
+  }
+
+  syncNavbarState()
+  window.addEventListener('scroll', syncNavbarState, { passive: true })
+
+  const revealTargets = document.querySelectorAll(
+    '.listing-card, .card, form, h1, h2, h3, .btns, #filters, #map, .f-info, .alert'
+  )
+
+  if (!revealTargets.length) return
+
+  revealTargets.forEach((element, index) => {
+    element.classList.add('reveal-item')
+    element.style.transitionDelay = `${Math.min(index * 35, 240)}ms`
+  })
+
+  if (!('IntersectionObserver' in window)) {
+    revealTargets.forEach((element) => element.classList.add('is-visible'))
+    return
+  }
+
+  const observer = new IntersectionObserver(
+    (entries, obs) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return
+        entry.target.classList.add('is-visible')
+        obs.unobserve(entry.target)
+      })
+    },
+    { threshold: 0.12, rootMargin: '0px 0px -30px 0px' }
+  )
+
+  revealTargets.forEach((element) => observer.observe(element))
+})
