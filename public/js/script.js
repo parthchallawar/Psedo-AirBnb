@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('scroll', syncNavbarState, { passive: true })
 
   const revealTargets = document.querySelectorAll(
-    '.listing-card, .card, form, h1, h2, h3, .btns, #filters, #map, .f-info, .alert'
+    '.listing-card, .card, form, h1, h2, h3, .btns, #map, .f-info, .alert'
   )
 
   if (!revealTargets.length) return

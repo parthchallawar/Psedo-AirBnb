@@ -1,29 +1,7 @@
 <%- layout("/layouts/boilerplate") %>
 
 <body>
-<section class="hero-section">
-    <div class="hero-blob hero-blob-1"></div>
-    <div class="hero-blob hero-blob-2"></div>
-    <div class="hero-inner">
-        <div class="hero-kicker">
-            <span class="hero-kicker-line"></span>
-            <span class="hero-kicker-text">Featured city stays</span>
-            <span class="hero-kicker-line"></span>
-        </div>
-        <h1 class="hero-headline">Where will you <span class="hero-word" id="heroWord">wake up</span>?</h1>
-        <p class="hero-subtitle">Hand-picked stays in the world's most restless cities.</p>
-    </div>
-</section>
-
-<div class="marquee-strip" aria-hidden="true">
-    <div class="marquee-track">
-        <span class="marquee-text">City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot; City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot;&nbsp;</span>
-        <span class="marquee-text">City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot; City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot;&nbsp;</span>
-    </div>
-</div>
-
-<div class="toolbar-breakout">
-<section class="explore-toolbar" id="filters">
+<div class="filter-strip-wrap">
     <div class="category-strip" role="tablist" aria-label="Browse by category">
         <a class="category-chip <%= !selectedCategory ? 'is-active' : '' %>" href="/listings<%= searchQuery ? '?q=' + encodeURIComponent(searchQuery) : '' %>">
             <span class="category-chip-icon"><i class="fa-solid fa-compass"></i></span>
@@ -78,39 +56,43 @@
             <span class="category-chip-label">Farms</span>
         </a>
     </div>
+</div>
 
-    <div class="toolbar-divider"></div>
-
-    <div class="toolbar-controls">
-        <form method="GET" action="/listings" class="price-sort-form">
-            <input type="hidden" name="q" value="<%= searchQuery %>">
-            <input type="hidden" name="category" value="<%= selectedCategory %>">
-            <div class="field">
-                <label for="minPrice">Min &#8377;</label>
-                <input type="number" id="minPrice" name="minPrice" min="0" value="<%= minPrice %>" class="form-control form-control-sm">
-            </div>
-            <div class="field">
-                <label for="maxPrice">Max &#8377;</label>
-                <input type="number" id="maxPrice" name="maxPrice" min="0" value="<%= maxPrice %>" class="form-control form-control-sm">
-            </div>
-            <div class="field">
-                <label for="sort">Sort</label>
-                <select id="sort" name="sort" class="form-select form-select-sm">
-                    <option value="" <%= sort === "" ? "selected" : "" %>>Default</option>
-                    <option value="newest" <%= sort === "newest" ? "selected" : "" %>>Newest</option>
-                    <option value="priceAsc" <%= sort === "priceAsc" ? "selected" : "" %>>Price: Low to High</option>
-                    <option value="priceDesc" <%= sort === "priceDesc" ? "selected" : "" %>>Price: High to Low</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-sm btn-dark">Apply</button>
-        </form>
-
-        <label class="tax-toggle">
-            <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckDefault">
-            Show total with taxes
-        </label>
+<section class="hero-section">
+    <div class="hero-blob hero-blob-1"></div>
+    <div class="hero-blob hero-blob-2"></div>
+    <div class="hero-inner">
+        <div class="hero-kicker">
+            <span class="hero-kicker-line"></span>
+            <span class="hero-kicker-text">Featured city stays</span>
+            <span class="hero-kicker-line"></span>
+        </div>
+        <h1 class="hero-headline">Where will you <span class="hero-word" id="heroWord">wake up</span>?</h1>
+        <p class="hero-subtitle">Hand-picked stays in the world's most restless cities.</p>
     </div>
 </section>
+
+<% const driftListings = listings.slice(0, 8); %>
+<% if (driftListings.length > 1) { %>
+<div class="hero-drift-wrap">
+    <div class="hero-drift-track">
+        <% [driftListings, driftListings].forEach(function(set) { %>
+            <% set.forEach(function(listing) { %>
+                <a href="/listings/<%= listing._id %>" class="hero-drift-card" style="background-image: linear-gradient(to top, rgba(9,7,6,0.85) 5%, rgba(9,7,6,0.05) 55%), url('<%= listing.image.url %>');">
+                    <span class="hero-drift-title"><%= listing.title %></span>
+                    <span class="hero-drift-price">&#8377;<%= listing.price.toLocaleString("en-IN") %> /night</span>
+                </a>
+            <% }); %>
+        <% }); %>
+    </div>
+</div>
+<% } %>
+
+<div class="marquee-strip" aria-hidden="true">
+    <div class="marquee-track">
+        <span class="marquee-text">City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot; City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot;&nbsp;</span>
+        <span class="marquee-text">City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot; City stays &middot; Lofts &middot; Rooftops &middot; Terraces &middot; Penthouses &middot; Studios &middot;&nbsp;</span>
+    </div>
 </div>
 
 <% if ((typeof searchQuery !== 'undefined' && searchQuery) || (typeof selectedCategory !== 'undefined' && selectedCategory)) { %>
@@ -152,7 +134,6 @@
             <%=listing.description %>
             <br>
              &#8377;<%= listing.price.toLocaleString("en-IN") %> /night
-             <i class="tax-info">&nbsp; &nbsp; +18 % GST </i>
             <br>
         </p>
         </div>
@@ -164,17 +145,3 @@
 </div>
 
 </body>
-<script>
-    let taxSwitch = document.getElementById("flexSwitchCheckDefault");
-    taxSwitch.addEventListener("click",() =>{
-        let taxinfo= document.getElementsByClassName("tax-info");
-        for(info of taxinfo){
-            if(info.style.display != "inline"){
-                info.style.display = "inline";
-            }else{
-                info.style.display = "none";
-            }
-        }
-    });
-
-</script>
