@@ -18,6 +18,23 @@
 })()
 
 document.addEventListener('DOMContentLoaded', () => {
+  const heroWord = document.getElementById('heroWord')
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (heroWord && !reduceMotion) {
+    const words = ['wake up', 'unwind', 'wander', 'arrive', 'stay a while']
+    let i = 0
+    setInterval(() => {
+      i = (i + 1) % words.length
+      heroWord.style.animation = 'none'
+      void heroWord.offsetWidth
+      heroWord.textContent = words[i]
+      heroWord.style.animation = ''
+    }, 2600)
+  }
+})
+
+document.addEventListener('DOMContentLoaded', () => {
   const navbar = document.querySelector('.navbar')
 
   const syncNavbarState = () => {

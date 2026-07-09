@@ -29,39 +29,25 @@ const User = require('./models/user.js'); // User model for authentication
 
 const dburl = process.env.ATLASDB_URL;
 
-const store = MongoStore.create({
-  mongoUrl: dburl,
-  crypto :{
-    secret : process.env.SECRET,
-  },
-  touchAfter: 24* 3600,
-});
+// connect-mongo opens its own MongoClient connection as soon as it's
+// created. Creating it at module load (in parallel with mongoose's own
+// connection below) makes two concurrent TLS handshakes to the same Atlas
+// cluster at startup, which is flaky on some networks. Building it only
+// after mongoose's connection has succeeded serializes the handshakes.
+let store;
 
-store.on("error",(err) => {
-    console.log("error in  mongo session",err)
-});
-
-const sessionOptions = {
-  store: store,
-  secret:process.env.SECRET,
-  resave: false,
-  saveUninitialized: true,
-  cookie : {
-    expires : Date.now() + 1000 * 60 * 60 * 24 * 7, // Cookie expires in 7 days
-    maxAge: 1000 * 60 * 60 * 24 * 7 ,// Cookie max age in milliseconds
-    httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
-  }
-};
-
-
-
-main().then(() => {
-  console.log('Connected to MongoDB');
-}).catch(err => {
-  console.error('Error connecting to MongoDB:', err);   
-});
 async function main(){
-    await mongoose.connect (dburl);
+    await mongoose.connect(dburl);
+    store = MongoStore.create({
+      mongoUrl: dburl,
+      crypto :{
+        secret : process.env.SECRET,
+      },
+      touchAfter: 24* 3600,
+    });
+    store.on("error",(err) => {
+        console.log("error in  mongo session",err)
+    });
 }
 
 
@@ -111,45 +97,62 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(session(sessionOptions));
-app.use(flash()); // Use flash messages in the application
+main().then(() => {
+  console.log('Connected to MongoDB');
 
-app.use(passport.initialize()); // Initialize Passport for authentication
-app.use(passport.session()); // Use Passport session management
-passport.use(new LocalStrategy(User.authenticate())); // Use local strategy for authentication
-passport.serializeUser(User.serializeUser()); // Serialize user for session
-passport.deserializeUser(User.deserializeUser()); // Deserialize user from session
+  const sessionOptions = {
+    store: store,
+    secret: process.env.SECRET,
+    resave: false,
+    saveUninitialized: true,
+    cookie: {
+      expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // Cookie expires in 7 days
+      maxAge: 1000 * 60 * 60 * 24 * 7, // Cookie max age in milliseconds
+      httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+    }
+  };
+
+  app.use(session(sessionOptions));
+  app.use(flash()); // Use flash messages in the application
+
+  app.use(passport.initialize()); // Initialize Passport for authentication
+  app.use(passport.session()); // Use Passport session management
+  passport.use(new LocalStrategy(User.authenticate())); // Use local strategy for authentication
+  passport.serializeUser(User.serializeUser()); // Serialize user for session
+  passport.deserializeUser(User.deserializeUser()); // Deserialize user from session
 
 
-app.get('/', (req, res) => {
-  res.redirect("/listings");
-});
+  app.get('/', (req, res) => {
+    res.redirect("/listings");
+  });
 
 
-app.use((req, res, next) => {
-  res.locals.success = req.flash('success'); // Make flash messages available in views
-  res.locals.error = req.flash('error'); // Make error messages available in views
-  res.locals.currUser = req.user; // Make the current user available in views
-  next(); // Call the next middleware
-});
+  app.use((req, res, next) => {
+    res.locals.success = req.flash('success'); // Make flash messages available in views
+    res.locals.error = req.flash('error'); // Make error messages available in views
+    res.locals.currUser = req.user; // Make the current user available in views
+    next(); // Call the next middleware
+  });
 
 
 
 
+  app.use('/listings', listingsRouter); // Use the listings routes and mount them at the /listings path
+  app.use('/listings/:id/reviews', reviewsRouter); // Use the reviews routes and mount them at the /listings/:id/reviews path
+  app.use('/bookings', bookingsRouter); // Use the bookings routes and mount them at the /bookings path
+  app.use('/', userRouter); // Use the user routes and mount them at the /user path
 
-app.use('/listings', listingsRouter); // Use the listings routes and mount them at the /listings path
-app.use('/listings/:id/reviews', reviewsRouter); // Use the reviews routes and mount them at the /listings/:id/reviews path
-app.use('/bookings', bookingsRouter); // Use the bookings routes and mount them at the /bookings path
-app.use('/', userRouter); // Use the user routes and mount them at the /user path
+  app.use((err,req, res, next) => {
+    let{statusCode = 500,message = 'Something went wrong'} = err;
+    if (!err.message) err.message = message;
+    res.status(statusCode).render('error.ejs', { err });
+  });
 
-app.use((err,req, res, next) => {
-  let{statusCode = 500,message = 'Something went wrong'} = err;
-  if (!err.message) err.message = message;
-  res.status(statusCode).render('error.ejs', { err });
-});
-
-app.listen(8080, () => {
-  console.log('Server is running on port 8080');
+  app.listen(8080, () => {
+    console.log('Server is running on port 8080');
+  });
+}).catch(err => {
+  console.error('Error connecting to MongoDB:', err);
 });
 
  
