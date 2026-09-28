@@ -7,6 +7,10 @@ if(process.env.NODE_ENV !== 'production') {
 
 const express = require('express');
 const app = express();
+// Behind Nginx (Phase 2) requests arrive from the proxy, not the real client;
+// this makes Express read the true client IP from X-Forwarded-For (one hop)
+// so rate limiting (below) is keyed per real user, not per proxy.
+app.set('trust proxy', 1);
 const mongoose = require('mongoose');
 const Listing = require('./models/listing'); 
 const path = require('path');
@@ -26,6 +30,7 @@ const flash = require('connect-flash'); // Flash messages for Express
 const  passport = require('passport'); // Passport for authentication
 const LocalStrategy = require('passport-local'); // Local strategy for Passport 
 const User = require('./models/user.js'); // User model for authentication
+const { globalLimiter } = require('./middleware/rateLimit.js'); // Redis-backed rate limiting
 
 const dburl = process.env.ATLASDB_URL;
 
@@ -96,6 +101,11 @@ app.use((req, res, next) => {
   res.locals.error = [];
   next();
 });
+
+// Mounted after the safe defaults above, so a 429 rendered here still has
+// non-null res.locals for error.ejs's navbar/flash includes to read.
+// Static files (served earlier, line 59) never reach this middleware.
+app.use(globalLimiter);
 
 main().then(() => {
   console.log('Connected to MongoDB');
