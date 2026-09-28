@@ -16,6 +16,7 @@ that exits with an error).
 ```bash
 node app.js          # Start the server on http://localhost:8080 (port is hardcoded)
 node init/index.js   # Seed the DB — WIPES the listings collection, then re-inserts sample data
+docker run -d --name wanderlust-redis -p 6379:6379 redis:7-alpine   # Redis for caching + rate limiting
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -29,6 +30,12 @@ The app will not start or function without these:
 - `SECRET` — express-session + connect-mongo secret
 - `CLOUD_NAME`, `CLOUD_API_KEY`, `CLOUD_API_SECRET` — Cloudinary (image uploads)
 - `MAP_TOKEN` — Mapbox token (geocoding on create + map rendering on show page)
+
+Optional:
+
+- `REDIS_URL` — Redis connection string, defaults to `redis://127.0.0.1:6379`. Backs
+  the listings cache and rate limiters (see below). The app runs without Redis; caching
+  and rate limiting just fail open (skip themselves) until it's reachable.
 
 `init/index.js` falls back to `mongodb://127.0.0.1:27017/wanderlust` if `ATLASDB_URL`
 is unset, but `app.js` has no such fallback.
@@ -49,12 +56,16 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`models/`** — Mongoose schemas: `Listing`, `Review`, `User`.
 - **`middleware.js`** — Auth/authorization guards: `isLoggedIn`, `isOwner`,
   `isReviewAuthor`, plus `saveRedirectUrl`.
+- **`middleware/rateLimit.js`** — Redis-backed `authLimiter` and `globalLimiter`
+  (`express-rate-limit` + `rate-limit-redis`).
+- **`config/redis.js`** — Shared ioredis client + `isRedisReady()`.
 - **`views/`** — `layouts/boilerplate.ejs` is the ejs-mate layout; `includes/` holds
   navbar/footer/flash partials; `listings/` and `users/` hold page templates.
 - **`public/`** — Static assets. `js/map.js` reads Mapbox config + listing GeoJSON from
   data attributes injected into the show page and renders the map.
 - **`utils/`** — `wrapAsync.js` (wraps async route handlers so rejections reach the
-  error middleware) and `ExpressError.js` (custom error with `statusCode`).
+  error middleware), `ExpressError.js` (custom error with `statusCode`), and `cache.js`
+  (Redis cache-aside helpers used by the listings cache).
 
 ### Data model relationships
 
@@ -84,6 +95,19 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   the model's `image` object in the controller. Cloudinary folder: `wanderlust_DEV`.
 - **Geocoding**: On create, the listing's `location` string is forward-geocoded via the
   Mapbox SDK and stored as `geometry`.
+- **Redis caching**: `GET /listings` (`controllers/listing.js` `index`) is cached in Redis
+  for 60s via `utils/cache.js` `getOrSet`, keyed by the normalized filters (search, category,
+  price range, sort). Every listing/review create, update or delete calls
+  `invalidateListingsCache()` so the cache reflects changes immediately. Responses carry
+  an `X-Cache: HIT|MISS` header.
+- **Rate limiting**: `middleware/rateLimit.js` exports `authLimiter` (10 req / 15 min per IP,
+  on `POST /login` and `POST /signup`) and `globalLimiter` (100 req / min per IP, mounted
+  on every request in `app.js`). Both store counters in Redis (`rate-limit-redis`) so all
+  app instances share one count. `app.set('trust proxy', 1)` makes the real client IP
+  visible once Nginx sits in front.
+- **Fail open**: every Redis-backed feature (`config/redis.js`) degrades gracefully —
+  if Redis is down or slow (`commandTimeout: 500`), caching and rate limiting are skipped
+  rather than breaking the request.
 
 ## Known quirks / gotchas
 
