@@ -3,6 +3,9 @@ const Booking = require('../models/booking.js'); // Booking model (used to show 
 const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken = process.env.MAP_TOKEN;
 const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
+const { getOrSet, invalidateListingsCache, LISTINGS_INDEX_PREFIX } = require('../utils/cache.js');
+
+const LISTINGS_CACHE_TTL = 60; // seconds
 
 const FILTER_CATEGORIES = [
   'Trending',
@@ -31,7 +34,7 @@ const SORT_OPTIONS = {
 };
 
 module.exports.index = (async (req,res) =>{
-  const q = (req.query.q || "").trim();
+  const q = (req.query.q || "").trim().slice(0, 100);
   const selectedCategory = (req.query.category || "").trim();
   const minPrice = (req.query.minPrice || "").trim();
   const maxPrice = (req.query.maxPrice || "").trim();
@@ -61,11 +64,24 @@ module.exports.index = (async (req,res) =>{
     query.price = { ...query.price, $lte: max };
   }
 
-  let cursor = Listing.find(query).populate("reviews");
-  if (SORT_OPTIONS[sort]) {
-    cursor = cursor.sort(SORT_OPTIONS[sort]);
-  }
-  const listings = await cursor;
+  // Normalised cache key: junk/invalid filter values collapse to the same
+  // key as "no filter", so random query strings can't flood Redis with keys.
+  const cacheKey = LISTINGS_INDEX_PREFIX + [
+    `q=${q.toLowerCase()}`,
+    `cat=${query.category || ''}`,
+    `min=${query.price?.$gte ?? ''}`,
+    `max=${query.price?.$lte ?? ''}`,
+    `sort=${SORT_OPTIONS[sort] ? sort : ''}`,
+  ].join('|');
+
+  const { data: listings, hit } = await getOrSet(cacheKey, LISTINGS_CACHE_TTL, () => {
+    let cursor = Listing.find(query).populate({ path: "reviews", select: "rating" }).lean();
+    if (SORT_OPTIONS[sort]) {
+      cursor = cursor.sort(SORT_OPTIONS[sort]);
+    }
+    return cursor;
+  });
+  res.set("X-Cache", hit ? "HIT" : "MISS");
 
   res.render("listings/index", {
     listings,
@@ -137,9 +153,10 @@ module.exports.createListing = (async (req, res,next) => {
   newListing.images = gallery.map(f => ({ url: f.path, filename: f.filename }));
   newListing.geometry = response.body.features[0].geometry;
     await newListing.save();
+    await invalidateListingsCache(); // so /listings shows the new listing right away
     console.log('Listing created successfully:', newListing);
     req.flash('success', 'Listing created successfully!'); // Flash message for success
-    res.redirect('/listings'); 
+    res.redirect('/listings');
   
  });
 
@@ -173,6 +190,7 @@ module.exports.updateListing = (async (req, res) => {
     }
     await listing.save(); // Save the updated listing
   }
+  await invalidateListingsCache(); // so /listings shows the update right away
 
   console.log('Listing updated successfully:', req.body.listing);
   req.flash('success', 'Listing updated successfully!'); // Flash message for success
@@ -183,6 +201,7 @@ module.exports.destroyListing = (async (req, res) => {
   const { id } = req.params;
   
     await Listing.findByIdAndDelete(id);
+  await invalidateListingsCache(); // so /listings stops showing the deleted listing
   console.log('Listing deleted successfully:', id);
   req.flash('success', 'Listing deleted successfully!'); // Flash message for success
   res.redirect('/listings'); // Redirect to the listings page after successful deletion
