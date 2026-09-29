@@ -18,9 +18,18 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    # No host port: only the app containers talk to this Redis.
-    # (Your Phase 1 wanderlust-redis container keeps using host port 6379
-    # for plain `node app.js` runs outside Docker.)
+    ports:
+      - "127.0.0.1:6380:6379" # localhost only: lets scripts on this machine inspect the queue (D10)
+
+  notification:
+    build: ./notification-service
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      REDIS_URL: redis://redis:6379
+      FAIL_RATE: ${FAIL_RATE:-0} # e.g. FAIL_RATE=0.7 docker compose up -d notification
+
 
   app1:
     <<: *app
