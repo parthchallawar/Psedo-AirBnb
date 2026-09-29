@@ -2,6 +2,7 @@ const Booking = require('../models/booking.js'); // Booking model
 const Listing = require('../models/listing.js'); // Listing model
 const ExpressError = require('../utils/ExpressError.js');
 const { withLock, LockBusyError, LockUnavailableError } = require('../utils/lock.js');
+const { publishNotification } = require('../queues/notificationQueue.js');
 
 module.exports.myTrips = (async (req, res) => {
   const bookings = await Booking.find({ user: req.user._id }).populate("listing");
@@ -10,7 +11,7 @@ module.exports.myTrips = (async (req, res) => {
 
 module.exports.createBooking = (async (req, res) => {
   const { listingId } = req.params;
-  const listing = await Listing.findById(listingId);
+  const listing = await Listing.findById(listingId).populate('owner', 'username email');
   if (!listing) {
     req.flash('error', 'Listing not found');
     return res.redirect('/listings');
@@ -76,13 +77,44 @@ module.exports.createBooking = (async (req, res) => {
     return res.redirect(`/listings/${listingId}`);
   }
 
+  const { booking } = outcome;
+  await publishNotification('booking.confirmed', {
+    bookingId: booking._id.toString(),
+    guestEmail: req.user.email,
+    guestName: req.user.username,
+    hostEmail: listing.owner?.email || null,
+    hostName: listing.owner?.username || null,
+    listingTitle: listing.title,
+    checkIn: checkIn.toISOString(),
+    checkOut: checkOut.toISOString(),
+    guests,
+    totalPrice,
+  }, `booking.confirmed-${booking._id}`);
+
   req.flash('success', 'Booking confirmed!');
   res.redirect('/bookings');
 });
 
 module.exports.cancelBooking = (async (req, res) => {
   const { bookingId } = req.params;
-  await Booking.findByIdAndDelete(bookingId);
+  const booking = await Booking.findById(bookingId)
+    .populate('user', 'username email')
+    .populate({ path: 'listing', select: 'title owner', populate: { path: 'owner', select: 'username email' } });
+
+  if (booking) {
+    await Booking.findByIdAndDelete(bookingId);
+    await publishNotification('booking.cancelled', {
+      bookingId: booking._id.toString(),
+      guestEmail: booking.user?.email || null,
+      guestName: booking.user?.username || null,
+      hostEmail: booking.listing?.owner?.email || null,
+      listingTitle: booking.listing?.title || 'Listing',
+      checkIn: booking.checkIn ? booking.checkIn.toISOString() : null,
+      checkOut: booking.checkOut ? booking.checkOut.toISOString() : null,
+    }, `booking.cancelled-${bookingId}`);
+  }
+
   req.flash('success', 'Booking cancelled.');
   res.redirect('/bookings');
 });
+

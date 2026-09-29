@@ -34,6 +34,7 @@ const { globalLimiter } = require('./middleware/rateLimit.js'); // Redis-backed 
 const os = require('os');
 const { redis, isRedisReady } = require('./config/redis.js');
 const { createSocketServer, closeSocketServer } = require('./socket/index.js');
+const { closeNotificationQueue } = require('./queues/notificationQueue.js');
 
 const dburl = process.env.ATLASDB_URL;
 
@@ -225,6 +226,7 @@ const shutdown = async (signal) => {
     if (io) await new Promise((resolve) => io.close(resolve));
     else if (server) await new Promise((resolve) => server.close(resolve));
     closeSocketServer();
+    await closeNotificationQueue();
     if (store) await store.close(); // session store's own MongoDB client (separate from mongoose's)
     await mongoose.connection.close();
     await redis.quit().catch(() => redis.disconnect());
