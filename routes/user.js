@@ -4,16 +4,17 @@ const User = require("../models/user.js"); // User model for authentication
 const passport = require("passport");
 const wrapAsync = require("../utils/wrapAsync.js");
 const { saveRedirectUrl, isLoggedIn } = require("../middleware.js");
+const { authLimiter } = require("../middleware/rateLimit.js");
 const listingsController = require("../controllers/users.js"); // Controller for user-related actions
 
 
 router.route("/signup")
     .get(listingsController.renderSignup) // Render the signup form
-    .post(listingsController.signup); // Handle signup form submission
+    .post(authLimiter, listingsController.signup); // Handle signup form submission
 
 router.route("/login")
     .get(listingsController.renderLogin) // Render the login form
-    .post(saveRedirectUrl, passport.authenticate("local", {
+    .post(authLimiter, saveRedirectUrl, passport.authenticate("local", {
         failureRedirect: "/login", // Redirect to login page on failure
         failureFlash: true, // Enable flash messages on failure
     }), listingsController.login); // Handle login form submission

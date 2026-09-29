@@ -1,23 +1,39 @@
 let Review = require('../models/review.js'); // Review model
 let Listing = require('../models/listing.js'); // Listing model
+const { invalidateListingsCache } = require('../utils/cache.js');
+const { publishNotification } = require('../queues/notificationQueue.js');
 
 module.exports.postReview = (async (req, res) => {
   const { id } = req.params;
-  let listing = await Listing.findById(id);
+  let listing = await Listing.findById(id).populate('owner', 'username email');
   let newreview = new Review(req.body.review);
   newreview.author = req.user._id; // Set the author of the review to the current user
-  listing.reviews.push(newreview); 
-  await newreview.save(); 
-  await listing.save(); 
+  listing.reviews.push(newreview);
+  await newreview.save();
+  await listing.save();
+  await invalidateListingsCache(); // so /listings shows the new average rating right away
+
+  if (!listing.owner?._id.equals(req.user._id) && listing.owner?.email) {
+    await publishNotification('review.created', {
+      reviewId: newreview._id.toString(),
+      hostEmail: listing.owner.email,
+      hostName: listing.owner.username,
+      listingTitle: listing.title,
+      reviewerName: req.user.username,
+      rating: newreview.rating,
+      comment: newreview.comment,
+    }, `review.created-${newreview._id}`);
+  }
+
   req.flash('success', 'Review added successfully!'); // Flash message for success
- res.redirect(`/listings/${id}`); // Redirect to the listing page after adding the review
- 
+  res.redirect(`/listings/${id}`); // Redirect to the listing page after adding the review
 });
 
 module.exports.destroyReview = (async (req, res) => {
   const { id, reviewId } = req.params;
   await Listing.findByIdAndUpdate(id, { $pull: { reviews: reviewId } }); // Remove the review ID from the listing's reviews array
   await Review.findByIdAndDelete(reviewId); // Delete the review from the database
+  await invalidateListingsCache(); // so /listings shows the updated average rating right away
   console.log('Review deleted successfully:', reviewId);
   req.flash('success', 'Review deleted successfully!'); // Flash message for success
   res.redirect(`/listings/${id}`); // Redirect to the listing page after deleting the

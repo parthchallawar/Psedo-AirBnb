@@ -2,26 +2,23 @@ const User = require("../models/user.js");
 const Listing = require("../models/listing.js");
 const Booking = require("../models/booking.js");
 
-module.exports.signup = (async (req, res) => {
-    try{
+module.exports.signup = (async (req, res, next) => {
+    try {
         let { email, username, password } = req.body; 
-    const user = new User({ email, username });
-    const registeredUser = await User.register(user, password);
-    console.log(registeredUser);
-    req.login(registeredUser,(err) => {
-    if (err) {
-        return next(err);
-    }
-    // Automatically log in the user after registration
-    req.flash("success", "Welcome to the app!");
-    res.redirect("/listings");
-    });
-    }catch (error) {
-        console.error("Error during user registration:", error);
+        const user = new User({ email, username });
+        const registeredUser = await User.register(user, password);
+        req.login(registeredUser, (err) => {
+            if (err) {
+                return next(err);
+            }
+            // Automatically log in the user after registration
+            req.flash("success", "Welcome to the app!");
+            res.redirect("/listings");
+        });
+    } catch (error) {
         req.flash("error", "Registration failed. Please try again.");
         res.redirect("/signup");
     }
-    
 });
 
 module.exports.renderSignup = ((req, res) => {
@@ -32,10 +29,9 @@ module.exports.renderLogin = ((req, res) => {
     res.render("users/login.ejs");
 });
 
-module.exports.login = (async(req, res) => {
+module.exports.login = (async (req, res) => {
     req.flash("success", "Welcome back!");
     const redirectUrl = res.locals.redirectUrl || "/listings";
-    console.log("Redirect URL:", redirectUrl); // Log the redirect URL for debugging
     res.redirect(redirectUrl); // Redirect to listings page or fallback on success
 });
 

@@ -107,6 +107,53 @@
 
     <hr>
 
+    <% if (isOwnerViewing) { %>
+        <section class="chat-section mt-4">
+            <h4><b>Guest messages</b></h4>
+            <% if (conversations && conversations.length > 0) { %>
+                <div class="chat-guest-list mb-3">
+                    <% conversations.forEach(function(c) { %>
+                        <button type="button" class="btn btn-outline-dark btn-sm chat-guest-btn" data-guest-id="<%= c.guestId %>">@<%= c.guestName %></button>
+                    <% }); %>
+                </div>
+            <% } else { %>
+                <p class="text-muted">No guest messages yet.</p>
+            <% } %>
+            <div id="chat" class="chat-panel" hidden
+                 data-listing-id="<%= listing._id %>"
+                 data-user-id="<%= currUser._id %>"
+                 data-guest-id="">
+                <ul class="chat-messages" aria-live="polite"></ul>
+                <p class="chat-error text-danger" hidden></p>
+                <form class="chat-form">
+                    <input class="form-control" name="text" maxlength="1000" autocomplete="off" placeholder="Write a message&hellip;" required>
+                    <button class="btn btn-dark" type="submit">Send</button>
+                </form>
+            </div>
+        </section>
+    <% } else if (currUser) { %>
+        <section class="chat-section mt-4">
+            <h4><b>Message the host</b></h4>
+            <div id="chat" class="chat-panel"
+                 data-listing-id="<%= listing._id %>"
+                 data-user-id="<%= currUser._id %>"
+                 data-guest-id="<%= currUser._id %>">
+                <ul class="chat-messages" aria-live="polite"></ul>
+                <p class="chat-error text-danger" hidden></p>
+                <form class="chat-form">
+                    <input class="form-control" name="text" maxlength="1000" autocomplete="off" placeholder="Write a message&hellip;" required>
+                    <button class="btn btn-dark" type="submit">Send</button>
+                </form>
+            </div>
+        </section>
+    <% } else { %>
+        <section class="chat-section mt-4">
+            <p><a href="/login">Log in</a> to message the host.</p>
+        </section>
+    <% } %>
+
+    <hr>
+
     <section class="reviews-section mt-4">
         <h4><b>Leave a Review</b></h4>
         <form action="/listings/<%= listing._id %>/reviews" method="post" novalidate class="needs-validation detail-review-form mt-3">
@@ -170,3 +217,7 @@
 </section>
 
 <script src="/js/map.js"></script>
+<% if (currUser) { %>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/chat.js"></script>
+<% } %>
