@@ -31,8 +31,15 @@ const  passport = require('passport'); // Passport for authentication
 const LocalStrategy = require('passport-local'); // Local strategy for Passport 
 const User = require('./models/user.js'); // User model for authentication
 const { globalLimiter } = require('./middleware/rateLimit.js'); // Redis-backed rate limiting
+const os = require('os');
+const { redis, isRedisReady } = require('./config/redis.js');
 
 const dburl = process.env.ATLASDB_URL;
+
+const PORT = process.env.PORT || 8080;
+// Which copy of the app answered — shown in the X-Instance-Id header and logs,
+// so load balancing (Phase 2) is visible instead of invisible.
+const INSTANCE_ID = process.env.INSTANCE_ID || os.hostname();
 
 // connect-mongo opens its own MongoClient connection as soon as it's
 // created. Creating it at module load (in parallel with mongoose's own
@@ -40,6 +47,7 @@ const dburl = process.env.ATLASDB_URL;
 // cluster at startup, which is flaky on some networks. Building it only
 // after mongoose's connection has succeeded serializes the handshakes.
 let store;
+let server;
 
 async function main(){
     await mongoose.connect(dburl);
@@ -59,6 +67,29 @@ async function main(){
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views')); // Set the views directory
+
+// Tag every response with the instance that served it, so load balancing
+// (Phase 2) is visible instead of invisible.
+app.use((req, res, next) => {
+  res.set('X-Instance-Id', INSTANCE_ID);
+  next();
+});
+
+// Health check for Docker and the load balancer. Registered before static
+// files, rate limiting and sessions so it's cheap, never rate-limited and
+// never creates a session document. Only MongoDB decides healthy vs
+// unhealthy: Redis is optional and fails open (see config/redis.js), so a
+// Redis outage must not take every instance out of rotation at once.
+app.get('/health', (req, res) => {
+  const mongoUp = mongoose.connection.readyState === 1;
+  res.status(mongoUp ? 200 : 503).json({
+    status: mongoUp ? 'ok' : 'unavailable',
+    instance: INSTANCE_ID,
+    mongo: mongoUp ? 'connected' : 'disconnected',
+    redis: isRedisReady() ? 'ready' : 'down',
+  });
+});
+
 app.use(express.urlencoded({ extended: true })); // Middleware to parse URL-encoded bodies
 app.use(methodOverride('_method')); // Middleware to support PUT and DELETE methods in forms
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the public directory
@@ -158,11 +189,41 @@ main().then(() => {
     res.status(statusCode).render('error.ejs', { err });
   });
 
-  app.listen(8080, () => {
-    console.log('Server is running on port 8080');
+  server = app.listen(PORT, () => {
+    console.log(`Server ${INSTANCE_ID} is running on port ${PORT}`);
   });
 }).catch(err => {
   console.error('Error connecting to MongoDB:', err);
 });
+
+// Graceful shutdown: on `docker stop` (SIGTERM) or Ctrl+C (SIGINT), stop
+// accepting new connections, let in-flight requests finish, then close
+// every connection (both MongoDB clients and Redis) before exiting.
+let shuttingDown = false;
+const shutdown = async (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`${signal} received: ${INSTANCE_ID} shutting down gracefully`);
+
+  // Docker sends SIGKILL 10s after SIGTERM, so give up cleanly before that.
+  setTimeout(() => {
+    console.log('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 8000).unref();
+
+  try {
+    if (server) await new Promise((resolve) => server.close(resolve)); // waits for in-flight requests
+    if (store) await store.close(); // session store's own MongoDB client (separate from mongoose's)
+    await mongoose.connection.close();
+    await redis.quit().catch(() => redis.disconnect());
+    console.log('Shutdown complete');
+    process.exit(0);
+  } catch (err) {
+    console.error('Error during shutdown:', err);
+    process.exit(1);
+  }
+};
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
  
