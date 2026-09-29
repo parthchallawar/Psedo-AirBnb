@@ -32,4 +32,9 @@ const bookingSchema = new Schema({
     },
 });
 
+// The overlap check in createBooking runs inside a Redis lock, so it must be fast.
+bookingSchema.index({ listing: 1, checkIn: 1, checkOut: 1 });
+// My Trips and profile pages look up bookings by user.
+bookingSchema.index({ user: 1 });
+
 module.exports = mongoose.model("Booking", bookingSchema);

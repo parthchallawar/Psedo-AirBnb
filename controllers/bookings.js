@@ -1,5 +1,7 @@
 const Booking = require('../models/booking.js'); // Booking model
 const Listing = require('../models/listing.js'); // Listing model
+const ExpressError = require('../utils/ExpressError.js');
+const { withLock, LockBusyError, LockUnavailableError } = require('../utils/lock.js');
 
 module.exports.myTrips = (async (req, res) => {
   const bookings = await Booking.find({ user: req.user._id }).populate("listing");
@@ -30,28 +32,49 @@ module.exports.createBooking = (async (req, res) => {
     return res.redirect(`/listings/${listingId}`);
   }
 
-  const clash = await Booking.findOne({
-    listing: listingId,
-    checkIn: { $lt: checkOut },
-    checkOut: { $gt: checkIn },
-  });
-  if (clash) {
-    req.flash('error', 'Those dates are already booked.');
-    return res.redirect(`/listings/${listingId}`);
-  }
-
   const nights = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
   const totalPrice = nights * listing.price;
 
-  const booking = new Booking({
-    listing: listingId,
-    user: req.user._id,
-    checkIn,
-    checkOut,
-    guests,
-    totalPrice,
-  });
-  await booking.save();
+  // Check-then-insert must be atomic per listing: without the lock, two
+  // concurrent requests can both see "no clash" and both insert. The lock is
+  // in Redis (not memory) so it holds across all app instances (Phase 2).
+  let outcome;
+  try {
+    outcome = await withLock(`lock:booking:listing:${listingId}`, async () => {
+      const clash = await Booking.findOne({
+        listing: listingId,
+        checkIn: { $lt: checkOut },
+        checkOut: { $gt: checkIn },
+      });
+      if (clash) return { clash: true };
+
+      const booking = new Booking({
+        listing: listingId,
+        user: req.user._id,
+        checkIn,
+        checkOut,
+        guests,
+        totalPrice,
+      });
+      await booking.save();
+      return { booking };
+    });
+  } catch (err) {
+    if (err instanceof LockBusyError) {
+      req.flash('error', 'Someone else is booking this listing right now. Please try again.');
+      return res.redirect(`/listings/${listingId}`);
+    }
+    if (err instanceof LockUnavailableError) {
+      // Fail closed: without the lock we can't rule out a double booking.
+      throw new ExpressError(503, 'Booking is temporarily unavailable. Please try again shortly.');
+    }
+    throw err;
+  }
+
+  if (outcome.clash) {
+    req.flash('error', 'Those dates are already booked.');
+    return res.redirect(`/listings/${listingId}`);
+  }
 
   req.flash('success', 'Booking confirmed!');
   res.redirect('/bookings');
