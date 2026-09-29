@@ -39,6 +39,10 @@ node scripts/notification-test.js [--base=http://localhost:8080] [--redis=redis:
                       # End-to-end notification microservice test (booking confirmed/cancelled,
                       # review notifications, Ethereal preview URLs, retry/idempotency).
                       # Use --status to inspect queue job counts.
+
+node scripts/cassandra-test.js [--live]
+                      # Tests Phase 6 Cassandra chat storage integration, schema CQL validity,
+                      # dynamic store switching, TimeUuid generation, and live queries if running.
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -64,6 +68,10 @@ Optional:
   `app2`, `app3`) so load balancing across instances is visible.
 - `TEST_USER2`/`TEST_PASS2` — a second real signed-up user (the guest), used by
   `scripts/chat-test.js` alongside `TEST_USER`/`TEST_PASS` (the host).
+- `MESSAGE_STORE` — `mongo` (default) or `cassandra`. Selects the chat message storage backing database.
+- `CASSANDRA_CONTACT_POINTS` — comma-separated Cassandra contact points, defaults to `127.0.0.1`.
+- `CASSANDRA_DC` — Cassandra local data center name, defaults to `datacenter1`.
+- `CASSANDRA_KEYSPACE` — Cassandra keyspace name, defaults to `wanderlust`.
 
 `init/index.js` falls back to `mongodb://127.0.0.1:27017/wanderlust` if `ATLASDB_URL`
 is unset, but `app.js` has no such fallback.
@@ -79,7 +87,7 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   `views/error.ejs`. Also exposes `GET /health` (used by Docker/Nginx), sets
   `X-Instance-Id` on every response, creates the Socket.IO server (`socket/index.js`),
   and handles SIGTERM/SIGINT for graceful shutdown (closes Socket.IO — which also
-  closes the HTTP server — then both MongoDB clients and Redis, before exiting).
+  closes the HTTP server — then both MongoDB clients, Cassandra client if enabled, and Redis, before exiting).
 - **`socket/index.js`** — Creates the Socket.IO server: reuses the Express session
   middleware (via `io.use()` with a throwaway response object — see the code comment
   for why `io.engine.use()` isn't used) so `socket.request.user` is the logged-in user,
@@ -102,6 +110,11 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`middleware/rateLimit.js`** — Redis-backed `authLimiter` and `globalLimiter`
   (`express-rate-limit` + `rate-limit-redis`).
 - **`config/redis.js`** — Shared ioredis client + `isRedisReady()`.
+- **`config/cassandra.js`** — Shared `cassandra-driver` client + `connectCassandra()`,
+  `isCassandraReady()`, and `closeCassandra()`. Bootstraps `cassandra/schema.cql` on startup.
+- **`cassandra/schema.cql`** — CQL schema defining keyspace `wanderlust` and query-first tables:
+  `messages_by_conversation` (partition: `conversation_id`, cluster: `sent_at` timeuuid DESC) and
+  `conversations_by_listing` (partition: `listing_id`, cluster: `guest_id`).
 - **`views/`** — `layouts/boilerplate.ejs` is the ejs-mate layout; `includes/` holds
   navbar/footer/flash partials; `listings/` and `users/` hold page templates.
 - **`public/`** — Static assets. `js/map.js` reads Mapbox config + listing GeoJSON from
@@ -118,10 +131,11 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   `TEST_USER`/`TEST_PASS` (host) and `TEST_USER2`/`TEST_PASS2` (guest) in `.env`.
 - **`scripts/notification-test.js`** — end-to-end notification microservice test: verifies
   booking and review email dispatch, Ethereal preview URLs, idempotency, and owner review filtering.
+- **`scripts/cassandra-test.js`** — integration test verifying Cassandra schema, interface
+  conformance, dynamic store selection, TimeUuid ordering, and live queries when available.
 - **`services/messageStore/`** — chat message storage behind one interface
-  (`saveMessage`, `getRecentMessages`, `listConversations`), so the backing database can
-  change (Phase 6: Cassandra) without touching `socket/chat.js` or controllers.
-  `mongoStore.js` is the only file that touches the `Message` model directly.
+  (`saveMessage`, `getRecentMessages`, `listConversations`), with interchangeable backends:
+  `mongoStore.js` (MongoDB fallback) and `cassandraStore.js` (Apache Cassandra polyglot store).
 - **`queues/notificationQueue.js`** — BullMQ producer: pushes self-contained notification jobs
   to Redis (`notifications` queue) with `enableOfflineQueue: false` and exponential backoff.
 - **`notification-service/`** — standalone notification microservice: independent Node.js
@@ -196,6 +210,14 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   and is try/caught so Redis delays or outages never fail user requests. Worker retries failed
   jobs up to 3 times with exponential backoff (2s, 4s...) and moves persistent failures
   to the failed set (dead-letter queue). Verified with `scripts/notification-test.js`.
+- **Polyglot Persistence & Cassandra Chat Storage**: listings, bookings, reviews, and users
+  remain in MongoDB (which supports relational lookups, joins, and complex queries), whereas
+  high-throughput, append-only chat messages can be stored in Apache Cassandra (`MESSAGE_STORE=cassandra`).
+  Cassandra tables are modeled query-first: `messages_by_conversation` (partitioned by
+  `conversation_id` and clustered by `sent_at` timeuuid descending for sequential history reads) and
+  `conversations_by_listing` (tracking active conversations for the host). Both tables are
+  written atomically via a single logged batch query. The app defaults to `MESSAGE_STORE=mongo`
+  for zero-dependency local development and fallback. Verified with `scripts/cassandra-test.js`.
 
 ## Known quirks / gotchas
 
