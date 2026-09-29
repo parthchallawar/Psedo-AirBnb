@@ -1,0 +1,56 @@
+# Local production-like stack: Nginx load-balancing three app instances.
+# Start: docker compose up --build -d      Stop: docker compose down
+
+x-app: &app                      # shared settings for app1..app3
+  build: .
+  env_file: .env
+  restart: unless-stopped
+  depends_on:
+    - redis
+  healthcheck:
+    test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+    interval: 10s
+    timeout: 3s
+    retries: 3
+    start_period: 40s
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # No host port: only the app containers talk to this Redis.
+    # (Your Phase 1 wanderlust-redis container keeps using host port 6379
+    # for plain `node app.js` runs outside Docker.)
+
+  app1:
+    <<: *app
+    environment:
+      INSTANCE_ID: app1
+      PORT: "8080"
+      REDIS_URL: redis://redis:6379
+
+  app2:
+    <<: *app
+    environment:
+      INSTANCE_ID: app2
+      PORT: "8080"
+      REDIS_URL: redis://redis:6379
+
+  app3:
+    <<: *app
+    environment:
+      INSTANCE_ID: app3
+      PORT: "8080"
+      REDIS_URL: redis://redis:6379
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:              # started, not healthy — one slow instance
+      - app1                 # must not block Nginx from starting at all
+      - app2
+      - app3
