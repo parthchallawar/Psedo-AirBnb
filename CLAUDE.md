@@ -31,6 +31,14 @@ node scripts/chat-test.js [--base=http://localhost:8080] [--keep] [--cleanup]
                       # authorization, validation, history). Creates/removes a temporary
                       # [TEST]-titled listing. Needs TEST_USER/TEST_PASS (host) and
                       # TEST_USER2/TEST_PASS2 (guest) in .env.
+
+cd notification-service && npm start
+                      # Start the notification microservice worker locally.
+
+node scripts/notification-test.js [--base=http://localhost:8080] [--redis=redis://127.0.0.1:6379] [--status] [--keep]
+                      # End-to-end notification microservice test (booking confirmed/cancelled,
+                      # review notifications, Ethereal preview URLs, retry/idempotency).
+                      # Use --status to inspect queue job counts.
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -108,10 +116,18 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`scripts/chat-test.js`** — end-to-end chat test: auth, cross-instance delivery via
   the Redis adapter, authorization rules, input validation, and history. Needs
   `TEST_USER`/`TEST_PASS` (host) and `TEST_USER2`/`TEST_PASS2` (guest) in `.env`.
+- **`scripts/notification-test.js`** — end-to-end notification microservice test: verifies
+  booking and review email dispatch, Ethereal preview URLs, idempotency, and owner review filtering.
 - **`services/messageStore/`** — chat message storage behind one interface
   (`saveMessage`, `getRecentMessages`, `listConversations`), so the backing database can
   change (Phase 6: Cassandra) without touching `socket/chat.js` or controllers.
   `mongoStore.js` is the only file that touches the `Message` model directly.
+- **`queues/notificationQueue.js`** — BullMQ producer: pushes self-contained notification jobs
+  to Redis (`notifications` queue) with `enableOfflineQueue: false` and exponential backoff.
+- **`notification-service/`** — standalone notification microservice: independent Node.js
+  project (its own `package.json`, Dockerfile, BullMQ worker, Nodemailer) that consumes
+  jobs from Redis and sends emails (via Ethereal test inbox or real SMTP) without connecting
+  to MongoDB.
 
 ### Data model relationships
 
@@ -172,6 +188,14 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   *before* being broadcast, since Redis pub/sub delivery is fire-and-forget; a message
   missed during a brief Redis blip is recovered from history on the next join/reload.
   Verified with `scripts/chat-test.js`.
+- **Notifications**: asynchronous email delivery via BullMQ message queue in Redis
+  (`queues/notificationQueue.js`) and a standalone consumer (`notification-service/`).
+  Three event types (`booking.confirmed`, `booking.cancelled`, `review.created`) are
+  published with deterministic job IDs (`<type>-<id>`) for enqueue idempotency. Jobs are
+  self-contained (worker never touches MongoDB). Producer uses `enableOfflineQueue: false`
+  and is try/caught so Redis delays or outages never fail user requests. Worker retries failed
+  jobs up to 3 times with exponential backoff (2s, 4s...) and moves persistent failures
+  to the failed set (dead-letter queue). Verified with `scripts/notification-test.js`.
 
 ## Known quirks / gotchas
 
