@@ -144,9 +144,14 @@ module.exports.showListing = (async (req, res) => {
     ownerBookings = await Booking.find({ listing: listing._id }).populate("user");
 
     const threads = await messageStore.listConversations(listing._id);
-    const guests = await User.find({ _id: { $in: threads.map((t) => t.guestId) } }).select('username');
-    const nameById = new Map(guests.map((g) => [g._id.toString(), g.username]));
-    conversations = threads.map((t) => ({ ...t, guestName: nameById.get(t.guestId) || 'guest' }));
+    if (threads && threads.length > 0) {
+      const guestIds = threads.map((t) => t.guestId).filter(Boolean);
+      const guests = await User.find({ _id: mongoose.trusted({ $in: guestIds }) }).select('username');
+      const nameById = new Map(guests.map((g) => [g._id.toString(), g.username]));
+      conversations = threads.map((t) => ({ ...t, guestName: nameById.get(t.guestId) || 'guest' }));
+    } else {
+      conversations = [];
+    }
   }
   res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings, conversations });
 });

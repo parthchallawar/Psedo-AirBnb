@@ -76,8 +76,8 @@ listingSchema.index({ owner: 1 });
 listingSchema.index({ geometry: '2dsphere' });
 
 listingSchema.post('findOneAndDelete', async (doc) =>{
-    if (doc) {
-        await Review.deleteMany({ _id: { $in: doc.reviews } }); // Delete all reviews associated with the listing
+    if (doc && doc.reviews && doc.reviews.length > 0) {
+        await Review.deleteMany({ _id: mongoose.trusted({ $in: doc.reviews }) }); // Delete all reviews associated with the listing
     }
 });
 
