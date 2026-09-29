@@ -25,6 +25,12 @@ node scripts/race-test.js [listingId] [--n=10] [--base=http://localhost:8080] [-
                       # Fires N concurrent bookings for the same listing/dates and
                       # verifies the booking lock via the actual row count in MongoDB.
                       # Needs TEST_USER/TEST_PASS in .env (a real signed-up user).
+
+node scripts/chat-test.js [--base=http://localhost:8080] [--keep] [--cleanup]
+                      # End-to-end guest<->host chat test (auth, cross-instance delivery,
+                      # authorization, validation, history). Creates/removes a temporary
+                      # [TEST]-titled listing. Needs TEST_USER/TEST_PASS (host) and
+                      # TEST_USER2/TEST_PASS2 (guest) in .env.
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -48,6 +54,8 @@ Optional:
 - `INSTANCE_ID` — defaults to the OS hostname. Shown in the `X-Instance-Id` response
   header and startup/shutdown logs; set per-container in `docker-compose.yml` (`app1`,
   `app2`, `app3`) so load balancing across instances is visible.
+- `TEST_USER2`/`TEST_PASS2` — a second real signed-up user (the guest), used by
+  `scripts/chat-test.js` alongside `TEST_USER`/`TEST_PASS` (the host).
 
 `init/index.js` falls back to `mongodb://127.0.0.1:27017/wanderlust` if `ATLASDB_URL`
 is unset, but `app.js` has no such fallback.
@@ -61,8 +69,18 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   sets up session (stored in Mongo via connect-mongo), connect-flash, and Passport.
   Mounts three routers and defines the final error-handling middleware that renders
   `views/error.ejs`. Also exposes `GET /health` (used by Docker/Nginx), sets
-  `X-Instance-Id` on every response, and handles SIGTERM/SIGINT for graceful shutdown
-  (closes the HTTP server, both MongoDB clients, and Redis before exiting).
+  `X-Instance-Id` on every response, creates the Socket.IO server (`socket/index.js`),
+  and handles SIGTERM/SIGINT for graceful shutdown (closes Socket.IO — which also
+  closes the HTTP server — then both MongoDB clients and Redis, before exiting).
+- **`socket/index.js`** — Creates the Socket.IO server: reuses the Express session
+  middleware (via `io.use()` with a throwaway response object — see the code comment
+  for why `io.engine.use()` isn't used) so `socket.request.user` is the logged-in user,
+  and wires the `@socket.io/redis-adapter` so events reach sockets on other app
+  instances. Uses its own two Redis clients, deliberately separate from
+  `config/redis.js`'s (see the code comment on the command-timeout gotcha this avoids).
+- **`socket/chat.js`** — `chat:join`/`chat:send` handlers for guest↔host chat.
+  Authorizes on every event (never trusts client-sent IDs for who's sending), rejects
+  invalid/empty/over-length messages, and saves each message before broadcasting it.
 - **`Dockerfile`**, **`docker-compose.yml`**, **`nginx/nginx.conf`** — containerize the
   app and run 3 instances behind Nginx for local load balancing (round robin,
   passive health checks). See Phase 2 docs under `docs/`.
@@ -87,6 +105,13 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`scripts/race-test.js`** — fires N concurrent booking requests for the same
   listing/dates and checks the actual row count in MongoDB; used to verify the booking
   lock. Needs `TEST_USER`/`TEST_PASS` in `.env` (a real signed-up user).
+- **`scripts/chat-test.js`** — end-to-end chat test: auth, cross-instance delivery via
+  the Redis adapter, authorization rules, input validation, and history. Needs
+  `TEST_USER`/`TEST_PASS` (host) and `TEST_USER2`/`TEST_PASS2` (guest) in `.env`.
+- **`services/messageStore/`** — chat message storage behind one interface
+  (`saveMessage`, `getRecentMessages`, `listConversations`), so the backing database can
+  change (Phase 6: Cassandra) without touching `socket/chat.js` or controllers.
+  `mongoStore.js` is the only file that touches the `Message` model directly.
 
 ### Data model relationships
 
@@ -136,6 +161,17 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   listings never block each other), waits up to ~3s if busy, and — unlike the cache and
   rate limiter — **fails closed**: if Redis is down, booking returns 503 rather than
   risking a double booking. Verified with `scripts/race-test.js`.
+- **Real-time chat**: guest↔host chat over Socket.IO (`socket/`). One conversation per
+  (listing, guest) pair, id'd as `<listingId>_<guestId>` — a guest and the listing's
+  owner are the only two allowed in it, checked on **every** `chat:join`/`chat:send`,
+  not just once. The sender is always read from the session (`socket.request.user`),
+  never from client-sent data. Client uses **WebSocket-only** transport (`public/js/chat.js`),
+  so each connection stays pinned to one app instance and plain Nginx round robin
+  works — no sticky sessions needed (contrast with a polling-capable client, which
+  would need `ip_hash`). Messages are saved to MongoDB (`services/messageStore/`)
+  *before* being broadcast, since Redis pub/sub delivery is fire-and-forget; a message
+  missed during a brief Redis blip is recovered from history on the next join/reload.
+  Verified with `scripts/chat-test.js`.
 
 ## Known quirks / gotchas
 
