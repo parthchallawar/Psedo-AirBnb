@@ -14,9 +14,12 @@ There is no build step, linter, or test suite (the `npm test` script is a placeh
 that exits with an error).
 
 ```bash
-node app.js          # Start the server on http://localhost:8080 (port is hardcoded)
+node app.js          # Start the server on http://localhost:8080 (PORT env var overrides)
 node init/index.js   # Seed the DB — WIPES the listings collection, then re-inserts sample data
 docker run -d --name wanderlust-redis -p 6379:6379 redis:7-alpine   # Redis for caching + rate limiting
+
+docker compose up --build -d   # Full stack: Nginx + 3 app instances + Redis, on http://localhost (port 80)
+docker compose down            # Stop the stack
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -36,6 +39,10 @@ Optional:
 - `REDIS_URL` — Redis connection string, defaults to `redis://127.0.0.1:6379`. Backs
   the listings cache and rate limiters (see below). The app runs without Redis; caching
   and rate limiting just fail open (skip themselves) until it's reachable.
+- `PORT` — defaults to `8080`.
+- `INSTANCE_ID` — defaults to the OS hostname. Shown in the `X-Instance-Id` response
+  header and startup/shutdown logs; set per-container in `docker-compose.yml` (`app1`,
+  `app2`, `app3`) so load balancing across instances is visible.
 
 `init/index.js` falls back to `mongodb://127.0.0.1:27017/wanderlust` if `ATLASDB_URL`
 is unset, but `app.js` has no such fallback.
@@ -48,7 +55,12 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`app.js`** — Entry point. Connects Mongoose, configures ejs-mate as the EJS engine,
   sets up session (stored in Mongo via connect-mongo), connect-flash, and Passport.
   Mounts three routers and defines the final error-handling middleware that renders
-  `views/error.ejs`.
+  `views/error.ejs`. Also exposes `GET /health` (used by Docker/Nginx), sets
+  `X-Instance-Id` on every response, and handles SIGTERM/SIGINT for graceful shutdown
+  (closes the HTTP server, both MongoDB clients, and Redis before exiting).
+- **`Dockerfile`**, **`docker-compose.yml`**, **`nginx/nginx.conf`** — containerize the
+  app and run 3 instances behind Nginx for local load balancing (round robin,
+  passive health checks). See Phase 2 docs under `docs/`.
 - **`routes/`** — `listing.js` (`/listings`), `review.js` (`/listings/:id/reviews`,
   uses `mergeParams`), `user.js` (`/signup`, `/login`, `/logout`). Routers wire
   middleware (auth, upload, validation) to controller methods.

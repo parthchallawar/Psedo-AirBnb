@@ -327,6 +327,14 @@ To reset the rate limit: `docker compose exec redis redis-cli flushall`.
 
 ## Known limitations (be ready to mention them in an interview)
 
+- **`restart: unless-stopped` did not auto-restart a `SIGKILL`'d container in this
+  environment.** Tested directly (`docker kill -s SIGKILL`, confirmed via `docker events`):
+  the container died and stayed exited, with no restart event, on this Docker Desktop
+  install (engine 29.8.1, WSL2 backend). This contradicts Docker's documented behavior for
+  `unless-stopped` (restart on any exit except an explicit `stop`). It's a Docker
+  Desktop/WSL2 quirk, not something in this app's code — worth mentioning if asked about
+  self-healing, and worth re-testing after a Docker Desktop update. `docker compose up -d`
+  or `docker start <container>` recovers it manually in the meantime.
 - **Nginx is a single point of failure.** In production you'd run two behind a floating IP, or use a managed load balancer (AWS ALB).
 - **Nginx resolves `app1..3` to IP addresses once, at startup.** If a container is *recreated* (not just restarted) and gets a new IP, run `docker compose restart nginx`. The production fix is a DNS `resolver` directive, or a service-discovery-aware load balancer.
 - **Passive health checks only.** Nginx notices a dead instance by failing real requests to it (a 2 s connect timeout here), rather than probing `/health` itself.
