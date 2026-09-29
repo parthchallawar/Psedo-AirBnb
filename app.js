@@ -33,6 +33,7 @@ const User = require('./models/user.js'); // User model for authentication
 const { globalLimiter } = require('./middleware/rateLimit.js'); // Redis-backed rate limiting
 const os = require('os');
 const { redis, isRedisReady } = require('./config/redis.js');
+const { createSocketServer, closeSocketServer } = require('./socket/index.js');
 
 const dburl = process.env.ATLASDB_URL;
 
@@ -48,6 +49,7 @@ const INSTANCE_ID = process.env.INSTANCE_ID || os.hostname();
 // after mongoose's connection has succeeded serializes the handshakes.
 let store;
 let server;
+let io;
 
 async function main(){
     await mongoose.connect(dburl);
@@ -153,7 +155,10 @@ main().then(() => {
     }
   };
 
-  app.use(session(sessionOptions));
+  // Kept in a variable so Socket.IO (below) can run the exact same session
+  // middleware on the WebSocket handshake and see socket.request.user.
+  const sessionMiddleware = session(sessionOptions);
+  app.use(sessionMiddleware);
   app.use(flash()); // Use flash messages in the application
 
   app.use(passport.initialize()); // Initialize Passport for authentication
@@ -192,6 +197,7 @@ main().then(() => {
   server = app.listen(PORT, () => {
     console.log(`Server ${INSTANCE_ID} is running on port ${PORT}`);
   });
+  io = createSocketServer(server, { sessionMiddleware, instanceId: INSTANCE_ID });
 }).catch(err => {
   console.error('Error connecting to MongoDB:', err);
 });
@@ -212,7 +218,13 @@ const shutdown = async (signal) => {
   }, 8000).unref();
 
   try {
-    if (server) await new Promise((resolve) => server.close(resolve)); // waits for in-flight requests
+    // io.close() disconnects every open WebSocket, then closes the HTTP
+    // server. A plain server.close() waits for open connections to end on
+    // their own, and an open WebSocket never does — it would always hit the
+    // 8s force-exit above once chat (Phase 4) is in use.
+    if (io) await new Promise((resolve) => io.close(resolve));
+    else if (server) await new Promise((resolve) => server.close(resolve));
+    closeSocketServer();
     if (store) await store.close(); // session store's own MongoDB client (separate from mongoose's)
     await mongoose.connection.close();
     await redis.quit().catch(() => redis.disconnect());
