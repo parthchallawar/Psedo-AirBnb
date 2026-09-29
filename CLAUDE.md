@@ -20,6 +20,11 @@ docker run -d --name wanderlust-redis -p 6379:6379 redis:7-alpine   # Redis for 
 
 docker compose up --build -d   # Full stack: Nginx + 3 app instances + Redis, on http://localhost (port 80)
 docker compose down            # Stop the stack
+
+node scripts/race-test.js [listingId] [--n=10] [--base=http://localhost:8080] [--keep]
+                      # Fires N concurrent bookings for the same listing/dates and
+                      # verifies the booking lock via the actual row count in MongoDB.
+                      # Needs TEST_USER/TEST_PASS in .env (a real signed-up user).
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -76,8 +81,12 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **`public/`** — Static assets. `js/map.js` reads Mapbox config + listing GeoJSON from
   data attributes injected into the show page and renders the map.
 - **`utils/`** — `wrapAsync.js` (wraps async route handlers so rejections reach the
-  error middleware), `ExpressError.js` (custom error with `statusCode`), and `cache.js`
-  (Redis cache-aside helpers used by the listings cache).
+  error middleware), `ExpressError.js` (custom error with `statusCode`), `cache.js`
+  (Redis cache-aside helpers used by the listings cache), and `lock.js` (Redis
+  distributed lock used by booking creation).
+- **`scripts/race-test.js`** — fires N concurrent booking requests for the same
+  listing/dates and checks the actual row count in MongoDB; used to verify the booking
+  lock. Needs `TEST_USER`/`TEST_PASS` in `.env` (a real signed-up user).
 
 ### Data model relationships
 
@@ -120,6 +129,13 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
 - **Fail open**: every Redis-backed feature (`config/redis.js`) degrades gracefully —
   if Redis is down or slow (`commandTimeout: 500`), caching and rate limiting are skipped
   rather than breaking the request.
+- **Booking concurrency**: `createBooking` (`controllers/bookings.js`) wraps the
+  overlap check and insert in `withLock('lock:booking:listing:<id>')` (`utils/lock.js`,
+  Redis `SET NX PX` + a Lua compare-and-delete release), so two concurrent requests for
+  the same listing can't both pass the overlap check. The lock is per listing (different
+  listings never block each other), waits up to ~3s if busy, and — unlike the cache and
+  rate limiter — **fails closed**: if Redis is down, booking returns 503 rather than
+  risking a double booking. Verified with `scripts/race-test.js`.
 
 ## Known quirks / gotchas
 
