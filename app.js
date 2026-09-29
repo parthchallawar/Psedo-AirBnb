@@ -35,6 +35,7 @@ const os = require('os');
 const { redis, isRedisReady } = require('./config/redis.js');
 const { createSocketServer, closeSocketServer } = require('./socket/index.js');
 const { closeNotificationQueue } = require('./queues/notificationQueue.js');
+const { connectCassandra, closeCassandra, isCassandraReady } = require('./config/cassandra.js');
 
 const dburl = process.env.ATLASDB_URL;
 
@@ -54,6 +55,9 @@ let io;
 
 async function main(){
     await mongoose.connect(dburl);
+    if (process.env.MESSAGE_STORE === 'cassandra') {
+      await connectCassandra();
+    }
     store = MongoStore.create({
       mongoUrl: dburl,
       crypto :{
@@ -85,11 +89,16 @@ app.use((req, res, next) => {
 // Redis outage must not take every instance out of rotation at once.
 app.get('/health', (req, res) => {
   const mongoUp = mongoose.connection.readyState === 1;
+  let cassandraStatus = 'disabled';
+  if (process.env.MESSAGE_STORE === 'cassandra') {
+    cassandraStatus = isCassandraReady() ? 'connected' : 'down';
+  }
   res.status(mongoUp ? 200 : 503).json({
     status: mongoUp ? 'ok' : 'unavailable',
     instance: INSTANCE_ID,
     mongo: mongoUp ? 'connected' : 'disconnected',
     redis: isRedisReady() ? 'ready' : 'down',
+    cassandra: cassandraStatus,
   });
 });
 
@@ -227,6 +236,9 @@ const shutdown = async (signal) => {
     else if (server) await new Promise((resolve) => server.close(resolve));
     closeSocketServer();
     await closeNotificationQueue();
+    if (process.env.MESSAGE_STORE === 'cassandra') {
+      await closeCassandra();
+    }
     if (store) await store.close(); // session store's own MongoDB client (separate from mongoose's)
     await mongoose.connection.close();
     await redis.quit().catch(() => redis.disconnect());
