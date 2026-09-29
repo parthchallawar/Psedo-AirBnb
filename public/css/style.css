@@ -1048,6 +1048,90 @@ hr {
     }
 }
 
+/* Phase 4: guest <-> host chat (views/listings/show.ejs, public/js/chat.js) */
+.chat-guest-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.chat-guest-btn.active {
+    background: var(--brand-gradient) !important;
+    border-color: transparent !important;
+    color: #14100D !important;
+}
+
+.chat-panel {
+    max-width: 640px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: var(--shadow-soft);
+    padding: 1rem;
+}
+
+.chat-messages {
+    list-style: none;
+    margin: 0 0 0.75rem;
+    padding: 0;
+    max-height: 340px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.chat-message {
+    max-width: 80%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 14px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-soft);
+    align-self: flex-start;
+}
+
+.chat-message.mine {
+    align-self: flex-end;
+    background: var(--brand-gradient);
+    color: #14100D;
+    border-color: transparent;
+}
+
+.chat-message-meta {
+    font-size: 0.72rem;
+    color: var(--ink-soft);
+    margin-bottom: 0.2rem;
+}
+
+.chat-message.mine .chat-message-meta {
+    color: rgba(20, 16, 13, 0.65);
+}
+
+.chat-message-text {
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.chat-form {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chat-form input {
+    flex: 1;
+}
+
+@media (max-width: 480px) {
+    .chat-panel {
+        max-width: 100%;
+        padding: 0.75rem;
+    }
+
+    .chat-message {
+        max-width: 92%;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

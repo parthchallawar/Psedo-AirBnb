@@ -1,5 +1,7 @@
 const Listing = require('../models/listing.js'); // Import the Listing model
 const Booking = require('../models/booking.js'); // Booking model (used to show owner bookings)
+const User = require('../models/user.js'); // User model (used to resolve guest names for chat)
+const messageStore = require('../services/messageStore'); // Chat message storage (owner's guest list)
 const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken = process.env.MAP_TOKEN;
 const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
@@ -116,12 +118,18 @@ module.exports.showListing = (async (req, res) => {
   }
   else{
     let ownerBookings = null;
+    let conversations = null;
     const isOwnerViewing = res.locals.currUser && listing.owner &&
       listing.owner._id.equals(res.locals.currUser._id);
     if (isOwnerViewing) {
       ownerBookings = await Booking.find({ listing: listing._id }).populate("user");
+
+      const threads = await messageStore.listConversations(listing._id);
+      const guests = await User.find({ _id: { $in: threads.map((t) => t.guestId) } }).select('username');
+      const nameById = new Map(guests.map((g) => [g._id.toString(), g.username]));
+      conversations = threads.map((t) => ({ ...t, guestName: nameById.get(t.guestId) || 'guest' }));
     }
-    res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings });
+    res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings, conversations });
   }
 
 });
