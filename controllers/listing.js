@@ -2,12 +2,15 @@ const Listing = require('../models/listing.js'); // Import the Listing model
 const Booking = require('../models/booking.js'); // Booking model (used to show owner bookings)
 const User = require('../models/user.js'); // User model (used to resolve guest names for chat)
 const messageStore = require('../services/messageStore'); // Chat message storage (owner's guest list)
+const mongoose = require('mongoose');
 const mbxGeocoding = require('@mapbox/mapbox-sdk/services/geocoding');
 const mapToken = process.env.MAP_TOKEN;
 const geoCodingClient = mbxGeocoding({ accessToken: mapToken });
 const { getOrSet, invalidateListingsCache, LISTINGS_INDEX_PREFIX } = require('../utils/cache.js');
+const ExpressError = require('../utils/ExpressError.js');
 
 const LISTINGS_CACHE_TTL = 60; // seconds
+const PAGE_SIZE = 12; // 12 listings per page
 
 const FILTER_CATEGORIES = [
   'Trending',
@@ -35,7 +38,7 @@ const SORT_OPTIONS = {
   newest: { _id: -1 },
 };
 
-module.exports.index = (async (req,res) =>{
+module.exports.index = (async (req, res) => {
   const q = (req.query.q || "").trim().slice(0, 100);
   const selectedCategory = (req.query.category || "").trim();
   const minPrice = (req.query.minPrice || "").trim();
@@ -45,12 +48,12 @@ module.exports.index = (async (req,res) =>{
 
   if (q) {
     const safePattern = new RegExp(escapeRegex(q), "i");
-    query.$or = [
+    query.$or = mongoose.trusted([
       { title: safePattern },
       { location: safePattern },
       { country: safePattern },
       { description: safePattern }
-    ];
+    ]);
   }
 
   if (FILTER_CATEGORIES.includes(selectedCategory)) {
@@ -59,25 +62,39 @@ module.exports.index = (async (req,res) =>{
 
   const min = Number(minPrice);
   const max = Number(maxPrice);
+  const priceFilter = {};
   if (minPrice !== "" && !Number.isNaN(min)) {
-    query.price = { ...query.price, $gte: min };
+    priceFilter.$gte = min;
   }
   if (maxPrice !== "" && !Number.isNaN(max)) {
-    query.price = { ...query.price, $lte: max };
+    priceFilter.$lte = max;
+  }
+  if (Object.keys(priceFilter).length > 0) {
+    query.price = mongoose.trusted(priceFilter);
   }
 
-  // Normalised cache key: junk/invalid filter values collapse to the same
-  // key as "no filter", so random query strings can't flood Redis with keys.
+  // Count total matching listings for pagination
+  const totalCount = await Listing.countDocuments(query);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const requestedPage = parseInt(req.query.page, 10) || 1;
+  const currentPage = Math.min(Math.max(1, requestedPage), totalPages);
+
+  // Normalised cache key: includes all filters and current page
   const cacheKey = LISTINGS_INDEX_PREFIX + [
     `q=${q.toLowerCase()}`,
     `cat=${query.category || ''}`,
     `min=${query.price?.$gte ?? ''}`,
     `max=${query.price?.$lte ?? ''}`,
     `sort=${SORT_OPTIONS[sort] ? sort : ''}`,
+    `page=${currentPage}`,
   ].join('|');
 
   const { data: listings, hit } = await getOrSet(cacheKey, LISTINGS_CACHE_TTL, () => {
-    let cursor = Listing.find(query).populate({ path: "reviews", select: "rating" }).lean();
+    let cursor = Listing.find(query)
+      .populate({ path: "reviews", select: "rating" })
+      .skip((currentPage - 1) * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .lean();
     if (SORT_OPTIONS[sort]) {
       cursor = cursor.sort(SORT_OPTIONS[sort]);
     }
@@ -93,124 +110,120 @@ module.exports.index = (async (req,res) =>{
     maxPrice,
     sort,
     categories: FILTER_CATEGORIES,
-    avgRating
+    avgRating,
+    currentPage,
+    totalPages,
+    totalCount,
+    hasPrevPage: currentPage > 1,
+    hasNextPage: currentPage < totalPages,
   });
 });
 
-module.exports.renderNewForm = (async(req, res) => {
-  //console.log(req.user);
-  
+module.exports.renderNewForm = (async (req, res) => {
   res.render('listings/new.ejs');
 });
 
 module.exports.showListing = (async (req, res) => {
   const listing = await Listing.findById(req.params.id).populate({
-    path:"reviews",
+    path: "reviews",
     populate: {
-      path: "author", // Populate the author field of the reviews
+      path: "author",
     },
-  }).populate("owner"); // Populate the reviews field with review data
-  console.log('Listing found:', listing);
+  }).populate("owner");
+
   if (!listing) {
-    req.flash('error','Listing not found in the database'); // Flash message for error
-    // return res.status(404).send('Listing not found');
-    res.redirect('/listings');
-  }
-  else{
-    let ownerBookings = null;
-    let conversations = null;
-    const isOwnerViewing = res.locals.currUser && listing.owner &&
-      listing.owner._id.equals(res.locals.currUser._id);
-    if (isOwnerViewing) {
-      ownerBookings = await Booking.find({ listing: listing._id }).populate("user");
-
-      const threads = await messageStore.listConversations(listing._id);
-      const guests = await User.find({ _id: { $in: threads.map((t) => t.guestId) } }).select('username');
-      const nameById = new Map(guests.map((g) => [g._id.toString(), g.username]));
-      conversations = threads.map((t) => ({ ...t, guestName: nameById.get(t.guestId) || 'guest' }));
-    }
-    res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings, conversations });
+    req.flash('error', 'Listing not found in the database');
+    return res.redirect('/listings');
   }
 
+  let ownerBookings = null;
+  let conversations = null;
+  const isOwnerViewing = res.locals.currUser && listing.owner &&
+    listing.owner._id.equals(res.locals.currUser._id);
+  if (isOwnerViewing) {
+    ownerBookings = await Booking.find({ listing: listing._id }).populate("user");
+
+    const threads = await messageStore.listConversations(listing._id);
+    const guests = await User.find({ _id: { $in: threads.map((t) => t.guestId) } }).select('username');
+    const nameById = new Map(guests.map((g) => [g._id.toString(), g.username]));
+    conversations = threads.map((t) => ({ ...t, guestName: nameById.get(t.guestId) || 'guest' }));
+  }
+  res.render('listings/show', { listing, mapToken, avgRating, isOwnerViewing, ownerBookings, conversations });
 });
 
-module.exports.createListing = (async (req, res,next) => {
+module.exports.createListing = (async (req, res, next) => {
+  let response = await geoCodingClient.forwardGeocode({
+    query: req.body.listing.location,
+    limit: 1
+  }).send();
 
- let response =await geoCodingClient.forwardGeocode({
-  query: req.body.listing.location,
-  limit: 1
-})
+  if (!response.body.features || response.body.features.length === 0) {
+    req.flash('error', 'Location not found. Please provide a valid location.');
+    return res.redirect('/listings/new');
+  }
 
-  .send();
-  console.log('Received data:', req.body);
-  console.log(req.body);
   if (!req.body.listing) {
     throw new ExpressError(400, 'Listing data is required');
   }
 
-  const newListing = new Listing(req.body.listing); // Use req.body.listing to access the nested object
-  newListing.owner = req.user._id; // Set the owner field to the current user's ID
+  const newListing = new Listing(req.body.listing);
+  newListing.owner = req.user._id;
   const cover = req.files?.['listing[image][url]']?.[0];
   if (cover) {
     newListing.image = {
-      url: cover.path, // Use the URL from the uploaded file
-      filename: cover.filename, // Use the filename from the uploaded file
+      url: cover.path,
+      filename: cover.filename,
     };
   }
   const gallery = req.files?.['images'] || [];
   newListing.images = gallery.map(f => ({ url: f.path, filename: f.filename }));
   newListing.geometry = response.body.features[0].geometry;
-    await newListing.save();
-    await invalidateListingsCache(); // so /listings shows the new listing right away
-    console.log('Listing created successfully:', newListing);
-    req.flash('success', 'Listing created successfully!'); // Flash message for success
-    res.redirect('/listings');
-  
- });
 
- module.exports.renderEditForm = (async (req, res) => {
+  await newListing.save();
+  await invalidateListingsCache(); // so /listings shows the new listing right away
+  req.flash('success', 'Listing created successfully!');
+  res.redirect('/listings');
+});
+
+module.exports.renderEditForm = (async (req, res) => {
   const listing = await Listing.findById(req.params.id);
   if (!listing) {
-    req.flash('error', 'Listing not found'); // Flash message for error
-    return res.redirect('/listings'); // Redirect to the listings page if listing not found
+    req.flash('error', 'Listing not found');
+    return res.redirect('/listings');
   }
-  let originalImageUrl =  listing.image.url;
-  originalImageUrl = originalImageUrl.replace("/upload","/upload/h_300,w_250"); 
-  res.render('listings/edit.ejs', { listing, originalImageUrl }); // Render the edit form with the listing data
-})
+  let originalImageUrl = listing.image.url;
+  originalImageUrl = originalImageUrl.replace("/upload", "/upload/h_300,w_250");
+  res.render('listings/edit.ejs', { listing, originalImageUrl });
+});
 
 module.exports.updateListing = (async (req, res) => {
-  let {id} = req.params;
-  await Listing.findByIdAndUpdate(id, {...req.body.listing});// Extract the fields from req.body.listing
+  let { id } = req.params;
+  await Listing.findByIdAndUpdate(id, { ...req.body.listing });
   const cover = req.files?.['listing[image][url]']?.[0];
   const gallery = req.files?.['images'] || [];
   if (cover || gallery.length) {
-    // Fetch the updated listing document
     let listing = await Listing.findById(id);
     if (cover) {
       listing.image = {
-        url: cover.path, // Use the URL from the uploaded file
-        filename: cover.filename, // Use the filename from the uploaded file
+        url: cover.path,
+        filename: cover.filename,
       };
     }
     if (gallery.length) {
       listing.images = gallery.map(f => ({ url: f.path, filename: f.filename }));
     }
-    await listing.save(); // Save the updated listing
+    await listing.save();
   }
-  await invalidateListingsCache(); // so /listings shows the update right away
+  await invalidateListingsCache();
 
-  console.log('Listing updated successfully:', req.body.listing);
-  req.flash('success', 'Listing updated successfully!'); // Flash message for success
-  res.redirect(`/listings/${id}`); // Redirect to the listings page after successful update
-  
+  req.flash('success', 'Listing updated successfully!');
+  res.redirect(`/listings/${id}`);
 });
+
 module.exports.destroyListing = (async (req, res) => {
   const { id } = req.params;
-  
-    await Listing.findByIdAndDelete(id);
-  await invalidateListingsCache(); // so /listings stops showing the deleted listing
-  console.log('Listing deleted successfully:', id);
-  req.flash('success', 'Listing deleted successfully!'); // Flash message for success
-  res.redirect('/listings'); // Redirect to the listings page after successful deletion
-});
+  await Listing.findByIdAndDelete(id);
+  await invalidateListingsCache();
+  req.flash('success', 'Listing deleted successfully!');
+  res.redirect('/listings');
+});

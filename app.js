@@ -11,6 +11,7 @@ const app = express();
 // this makes Express read the true client IP from X-Forwarded-For (one hop)
 // so rate limiting (below) is keyed per real user, not per proxy.
 app.set('trust proxy', 1);
+const helmet = require('helmet');
 const mongoose = require('mongoose');
 const Listing = require('./models/listing'); 
 const path = require('path');
@@ -18,7 +19,6 @@ const methodOverride = require('method-override');
 const ejsMate = require('ejs-mate'); // EJS template engine for Express
 const wrapAsync = require('./utils/wrapAsync.js'); // Utility to wrap async functions for error handling
 const ExpressError = require('./utils/ExpressError.js'); // Custom error class for Express
-const { listingSchema,reviewSchema } = require('./schema.js'); // Joi schema for validation
 const Review = require('./models/review.js'); // Review model
 const listingsRouter = require('./routes/listing.js'); // Import the listings routes
 const reviewsRouter = require('./routes/review.js'); // Import the reviews routes
@@ -44,6 +44,52 @@ const PORT = process.env.PORT || 8080;
 // so load balancing (Phase 2) is visible instead of invisible.
 const INSTANCE_ID = process.env.INSTANCE_ID || os.hostname();
 
+// Security headers with tailored Content Security Policy (CSP)
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net',
+          'https://api.mapbox.com',
+          'https://cdnjs.cloudflare.com',
+        ],
+        styleSrc: [
+          "'self'",
+          "'unsafe-inline'",
+          'https://cdn.jsdelivr.net',
+          'https://cdnjs.cloudflare.com',
+          'https://fonts.googleapis.com',
+          'https://api.mapbox.com',
+        ],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'https://cdnjs.cloudflare.com'],
+        imgSrc: [
+          "'self'",
+          'data:',
+          'blob:',
+          'https://res.cloudinary.com',
+          'https://images.unsplash.com',
+          'https://*.tiles.mapbox.com',
+          'https://api.mapbox.com',
+        ],
+        connectSrc: [
+          "'self'",
+          'https://api.mapbox.com',
+          'https://events.mapbox.com',
+          'https://*.tiles.mapbox.com',
+          'ws:',
+          'wss:',
+        ],
+        workerSrc: ["'self'", 'blob:'],
+        objectSrc: ["'none'"],
+      },
+    },
+  })
+);
+
 // connect-mongo opens its own MongoClient connection as soon as it's
 // created. Creating it at module load (in parallel with mongoose's own
 // connection below) makes two concurrent TLS handshakes to the same Atlas
@@ -54,6 +100,8 @@ let server;
 let io;
 
 async function main(){
+    // Prevent NoSQL query injection
+    mongoose.set('sanitizeFilter', true);
     await mongoose.connect(dburl);
     if (process.env.MESSAGE_STORE === 'cassandra') {
       await connectCassandra();
@@ -107,35 +155,6 @@ app.use(methodOverride('_method')); // Middleware to support PUT and DELETE meth
 app.use(express.static(path.join(__dirname, 'public'))); // Serve static files from the public directory
 app.engine('ejs', ejsMate); // Use ejsMate for EJS rendering
 
-
-
-
-
-
-const validateListing = (req, res, next) => {
-    let { error } = listingSchema.validate(req.body); // Validate the listing data using Joi schema
-
-  if (error) {
-    let errorMessage = error.details.map(el => el.message).join(', ');
-    throw new ExpressError(400, errorMessage); 
-  } else{
-    next();
-  }
-}
-
-
-
-//validate review
-const validateReview = (req, res, next) => {
-  let { error } = reviewSchema.validate(req.body); // Validate the review data using Joi schema
-  if (error) {
-    let errorMessage = error.details.map(el => el.message).join(', ');
-    throw new ExpressError(400, errorMessage);
-  } else {
-    next();
-  }
-}
-
 app.use((req, res, next) => {
   // Safe defaults so error.ejs (and its navbar/flash includes) can always render,
   // even if session/flash/passport below throws before the real values are set.
@@ -162,6 +181,8 @@ main().then(() => {
       expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // Cookie expires in 7 days
       maxAge: 1000 * 60 * 60 * 24 * 7, // Cookie max age in milliseconds
       httpOnly: true, // Prevents client-side JavaScript from accessing the cookie
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
     }
   };
 

@@ -1,12 +1,10 @@
-const { session } = require("passport");
 const Listing = require("./models/listing.js"); // Import the Listing model
 const Review = require("./models/review.js"); // Review model (used by isReviewAuthor)
 const Booking = require("./models/booking.js"); // Booking model (used by isBookingOwner)
-const { listingSchema, bookingSchema } = require("./schema.js"); // Joi schemas for validation
+const { listingSchema, reviewSchema, bookingSchema } = require("./schema.js"); // Joi schemas for validation
 const ExpressError = require("./utils/ExpressError.js"); // Custom error class
 
 module.exports.isLoggedIn = (req, res, next) => {
-  console.log(req.path, "..", req.originalUrl); // Log the user object for debugging
   if (!req.isAuthenticated()) {
     if (!req.session.redirectUrl) {
       req.session.redirectUrl = req.originalUrl; // Store the original URL to redirect after login
@@ -20,13 +18,12 @@ module.exports.isLoggedIn = (req, res, next) => {
 module.exports.saveRedirectUrl = (req, res, next) => {
   if (req.session.redirectUrl) {
     res.locals.redirectUrl = req.session.redirectUrl; // Make the redirect URL available in views
-   
   }
   next();
 };
 
-module.exports.isOwner =async (req, res, next) => {
-   let {id} = req.params;
+module.exports.isOwner = async (req, res, next) => {
+  let { id } = req.params;
   let listing = await Listing.findById(id);
   if (!listing) {
     req.flash("error", "Listing not found");
@@ -39,10 +36,13 @@ module.exports.isOwner =async (req, res, next) => {
   next();
 };
 
-
 module.exports.isReviewAuthor = async (req, res, next) => {
   let { id, reviewId } = req.params;
   let review = await Review.findById(reviewId);
+  if (!review) {
+    req.flash("error", "Review not found");
+    return res.redirect(`/listings/${id}`);
+  }
   if (!review.author.equals(res.locals.currUser._id)) {
     req.flash("error", "You do not have permission to delete this review.");
     return res.redirect(`/listings/${id}`);
@@ -50,17 +50,26 @@ module.exports.isReviewAuthor = async (req, res, next) => {
   next();
 };
 
-
 module.exports.validateListing = (req, res, next) => {
-    let { error } = listingSchema.validate(req.body); // Validate the listing data using Joi schema
+  let { error } = listingSchema.validate(req.body); // Validate the listing data using Joi schema
 
   if (error) {
     let errorMessage = error.details.map(el => el.message).join(', ');
     throw new ExpressError(400, errorMessage);
-  } else{
+  } else {
     next();
   }
+};
 
+module.exports.validateReview = (req, res, next) => {
+  let { error } = reviewSchema.validate(req.body); // Validate the review data using Joi schema
+
+  if (error) {
+    let errorMessage = error.details.map(el => el.message).join(', ');
+    throw new ExpressError(400, errorMessage);
+  } else {
+    next();
+  }
 };
 
 module.exports.validateBooking = (req, res, next) => {
@@ -87,6 +96,7 @@ module.exports.isBookingOwner = async (req, res, next) => {
   }
   next();
 };
+
 
 
   

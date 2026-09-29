@@ -70,13 +70,18 @@ const listingSchema = new Schema({
     }
 });
 
+// Indexes for query performance and spatial queries
+listingSchema.index({ category: 1, price: 1 });
+listingSchema.index({ owner: 1 });
+listingSchema.index({ geometry: '2dsphere' });
+
 listingSchema.post('findOneAndDelete', async (doc) =>{
     if (doc) {
         await Review.deleteMany({ _id: { $in: doc.reviews } }); // Delete all reviews associated with the listing
-        console.log('Reviews deleted successfully for listing:', doc._id);
     }
 });
 
 const Listing = mongoose.model('Listing', listingSchema);
 module.exports = Listing;
+
 

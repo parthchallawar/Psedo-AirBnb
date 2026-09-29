@@ -43,6 +43,10 @@ node scripts/notification-test.js [--base=http://localhost:8080] [--redis=redis:
 node scripts/cassandra-test.js [--live]
                       # Tests Phase 6 Cassandra chat storage integration, schema CQL validity,
                       # dynamic store switching, TimeUuid generation, and live queries if running.
+
+node scripts/production-basics-test.js [--base=http://localhost:8080]
+                      # End-to-end verification of Phase 7: MongoDB indexes, pagination,
+                      # Helmet CSP security headers, NoSQL sanitizeFilter, and session hardening.
 ```
 
 No auto-reload is configured; restart `node app.js` manually after changes (or run it
@@ -219,29 +223,24 @@ Standard Express MVC. Request flow: `app.js` → router (`routes/`) → controll
   written atomically via a single logged batch query. The app defaults to `MESSAGE_STORE=mongo`
   for zero-dependency local development and fallback. Verified with `scripts/cassandra-test.js`.
 
+- **Production Basics & Security (Phase 7)**:
+  - **Database Indexing**: Compound index on `{ category: 1, price: 1 }` for filtered & sorted browse queries, `{ owner: 1 }` for host management, and `2dsphere` geospatial index on `geometry` for geo queries.
+  - **Pagination**: 12 listings per page with clamped page bounds, filter preservation in pagination query strings, and page-specific Redis cache keys (`listings:page=...`).
+  - **Security & Hardening**: `helmet()` configured with a tailored Content-Security-Policy (whitelisting Mapbox, Cloudinary, Bootstrap, Google Fonts, and WebSockets), `mongoose.set('sanitizeFilter', true)` (with `mongoose.trusted()` applied to internal Mongo operator queries) to prevent NoSQL operator injection, and `sameSite: 'lax'` session cookies.
+  - Verified with `scripts/production-basics-test.js`.
+
 ## Known quirks / gotchas
 
-Be careful — this codebase has redundant and inconsistent middleware that is easy to
-misread:
+Be careful — this codebase has some specific nuances:
 
-- **Listing validation is effectively disabled.** `validateListing` is defined multiple
-  times: the real Joi-backed versions live in `app.js` and `middleware.js`, but the copy
-  used by `routes/listing.js` (line ~22) is a **no-op that just logs and calls `next()`**.
-  Creating a listing does not actually validate against `listingSchema`. If you need
-  real validation, wire in the `middleware.js` `validateListing` (and note it also needs
-  `listingSchema`/`ExpressError` imported there).
-- `routes/review.js` defines an unused `validateListing` that references an undefined
-  `listingSchema` — dead code; don't call it.
-- Middleware order on the listing PUT/DELETE routes lists `isOwner` before `isLoggedIn`
-  in places. Since `isOwner` reads `res.locals.currUser._id`, it depends on an
-  authenticated user; prefer `isLoggedIn, isOwner` ordering when editing these routes.
+- Middleware order on the listing PUT/DELETE routes: ensure `isLoggedIn, isOwner` ordering when editing these routes.
 - `Review`'s `createdAt` default is `Date.now()` (called once at module load), not
   `Date.now` — all reviews get the server's start time, not their creation time.
 - `init/index.js` hardcodes a single `owner` ObjectId (`686a259adc83c042a4761937`) for
   all seeded listings; that user must exist for owner-based views to resolve.
 - The server port (8080) and the error-render middleware ignore `statusCode` — every
   error renders `error.ejs` with a 200. Change `app.js` if you need proper status codes.
-- Several handlers `console.log` request bodies and listings; these are debug leftovers.
+- `mongoose.set('sanitizeFilter', true)` is active: whenever constructing MongoDB queries using internal operator objects (e.g. `$or`, `$gte`, `$lte`, `$gt`), wrap the query object with `mongoose.trusted(...)` to prevent Mongoose from coercing them into `$eq` matches.
 
 ## Conventions
 

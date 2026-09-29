@@ -1,5 +1,6 @@
 const Booking = require('../models/booking.js'); // Booking model
 const Listing = require('../models/listing.js'); // Listing model
+const mongoose = require('mongoose');
 const ExpressError = require('../utils/ExpressError.js');
 const { withLock, LockBusyError, LockUnavailableError } = require('../utils/lock.js');
 const { publishNotification } = require('../queues/notificationQueue.js');
@@ -44,8 +45,8 @@ module.exports.createBooking = (async (req, res) => {
     outcome = await withLock(`lock:booking:listing:${listingId}`, async () => {
       const clash = await Booking.findOne({
         listing: listingId,
-        checkIn: { $lt: checkOut },
-        checkOut: { $gt: checkIn },
+        checkIn: mongoose.trusted({ $lt: checkOut }),
+        checkOut: mongoose.trusted({ $gt: checkIn }),
       });
       if (clash) return { clash: true };
 

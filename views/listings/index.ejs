@@ -142,6 +142,39 @@
 
  <%}%>
     </div>
+
+    <% if (typeof totalPages !== 'undefined' && totalPages > 1) { %>
+        <%
+          function getPageUrl(targetPage) {
+            const params = [];
+            if (typeof searchQuery !== 'undefined' && searchQuery) params.push('q=' + encodeURIComponent(searchQuery));
+            if (typeof selectedCategory !== 'undefined' && selectedCategory) params.push('category=' + encodeURIComponent(selectedCategory));
+            if (typeof minPrice !== 'undefined' && minPrice) params.push('minPrice=' + encodeURIComponent(minPrice));
+            if (typeof maxPrice !== 'undefined' && maxPrice) params.push('maxPrice=' + encodeURIComponent(maxPrice));
+            if (typeof sort !== 'undefined' && sort) params.push('sort=' + encodeURIComponent(sort));
+            params.push('page=' + targetPage);
+            return '/listings?' + params.join('&');
+          }
+        %>
+        <nav class="pagination-wrap my-4 d-flex justify-content-center align-items-center gap-2" aria-label="Listings navigation">
+            <% if (hasPrevPage) { %>
+                <a class="btn btn-outline-dark btn-sm rounded-pill px-3" href="<%= getPageUrl(currentPage - 1) %>">&larr; Previous</a>
+            <% } else { %>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" disabled>&larr; Previous</button>
+            <% } %>
+
+            <span class="mx-2 text-muted small">
+                Page <strong><%= currentPage %></strong> of <strong><%= totalPages %></strong> (<%= totalCount %> total)
+            </span>
+
+            <% if (hasNextPage) { %>
+                <a class="btn btn-outline-dark btn-sm rounded-pill px-3" href="<%= getPageUrl(currentPage + 1) %>">Next &rarr;</a>
+            <% } else { %>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3" disabled>Next &rarr;</button>
+            <% } %>
+        </nav>
+    <% } %>
 </div>
 
 </body>
+
